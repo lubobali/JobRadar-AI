@@ -167,11 +167,20 @@ nginx -t
 systemctl reload nginx
 
 echo "==> TLS"
-if [ ! -d "/etc/letsencrypt/live/$DOMAIN" ]; then
-  certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$EMAIL" --redirect
-else
-  echo "    certificate already present"
-fi
+# certbot runs on EVERY deploy, not only the first. The block above rewrites the
+# vhost from scratch, which erases the 443 server block certbot previously added
+# - and a first-run-only guard then skips putting it back. nginx falls through
+# to the default vhost, serves someone else's certificate, and every client
+# fails with:
+#
+#   [SSL: CERTIFICATE_VERIFY_FAILED] Hostname mismatch, certificate is not valid
+#   for jobradar.lubot.ai
+#
+# --keep-until-expiring reuses the existing certificate rather than issuing a
+# new one, so this is cheap and never trips Let's Encrypt rate limits. It is the
+# nginx CONFIG that needs reapplying, not the certificate.
+certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$EMAIL" \
+        --redirect --keep-until-expiring
 
 echo "==> checks"
 curl -s -o /dev/null -w "    /status  -> %{http_code}\n" "http://127.0.0.1:$PORT/status"
