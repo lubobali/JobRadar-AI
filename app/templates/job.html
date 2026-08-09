@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ job.title }} · JobRadar-AI{% endblock %}
+{% block body %}
+
+<div class="detail-head">
+  <a href="/" style="font-size:13px">← Back to search</a>
+  <h1 style="margin-top:14px">{{ job.title }}</h1>
+  <div class="card-meta" style="font-size:14px">
+    {{ job.company }}
+    <span class="sep">·</span>{{ job.location or 'Location not stated' }}
+    <span class="sep">·</span>{{ job.source }}
+    {% if job.remote %}<span class="tag remote">remote</span>{% endif %}
+    {% if job.salary %}<span class="sep">·</span>{{ job.salary }}{% endif %}
+  </div>
+
+  {% if job.fit_score is not none %}
+  <div class="card" style="margin-top:18px">
+    <div class="card-head">
+      <div class="score {{ 's-high' if job.fit_score >= 80 else 's-mid' if job.fit_score >= 60 else 's-low' }}">
+        {{ job.fit_score }}
+      </div>
+      <div style="flex:1">
+        <div style="font-size:13px;color:var(--text-faint);margin-bottom:3px">Fit score</div>
+        <div style="font-size:14px;line-height:1.6">{{ job.reason }}</div>
+        <div style="font-size:12px;color:var(--text-faint);margin-top:8px">
+          Scored by an LLM reading this posting against your profile. It is a
+          reading, not a verdict.
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card-actions" style="margin-top:18px">
+    <button class="act {{ 'done' if job.saved }}"
+            onclick="save(this, '{{ job.id }}')">{{ 'Saved' if job.saved else 'Save' }}</button>
+    {% if job.application_status %}
+    <select class="status st-{{ job.application_status }}"
+            onchange="setStatus(this, {{ job.application_id }})">
+      {% for s in statuses %}
+      <option value="{{ s }}" {{ 'selected' if job.application_status == s }}>{{ s }}</option>
+      {% endfor %}
+    </select>
+    {% else %}
+    <button class="act" onclick="apply(this, '{{ job.id }}')">Log applied</button>
+    {% endif %}
+    <a class="act" style="text-decoration:none" href="{{ job.url }}" target="_blank" rel="noopener">Open posting ↗</a>
+  </div>
+</div>
+
+<div class="description">{{ job.description }}</div>
+
+<div style="font-size:12px;color:var(--text-faint);margin:14px 0 8px">
+  This is the posting's own text, as published. Treated as untrusted input
+  everywhere it is read.
+</div>
+{% endblock %}

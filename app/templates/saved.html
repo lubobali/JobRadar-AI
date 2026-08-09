@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% from "_card.html" import card %}
+{% block title %}Saved · JobRadar-AI{% endblock %}
+{% block body %}
+<div class="resultcount" style="margin-top:28px">
+  <strong>{{ total }}</strong> saved {{ 'job' if total == 1 else 'jobs' }}
+</div>
+{% for job in jobs %}{{ card(job, show_note=True) }}{% else %}
+<div class="empty">Nothing saved yet. Search, then hit Save on anything worth coming back to.</div>
+{% endfor %}
+{% endblock %}

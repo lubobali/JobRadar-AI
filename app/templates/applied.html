@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Applied · JobRadar-AI{% endblock %}
+{% block body %}
+
+<div class="resultcount" style="margin-top:28px">
+  <strong>{{ total }}</strong> {{ 'application' if total == 1 else 'applications' }}
+  <span style="margin-left:auto"></span>
+</div>
+
+<div class="filters" style="margin-bottom:18px">
+  <a class="act" style="text-decoration:none" href="/applied">All</a>
+  {% for s in statuses %}
+  <a class="act {{ 'done' if current_status == s }}" style="text-decoration:none"
+     href="/applied?status={{ s }}">{{ s }}</a>
+  {% endfor %}
+</div>
+
+{% if applications %}
+<table>
+  <thead>
+    <tr>
+      <th style="width:36%">Role</th>
+      <th>Company</th>
+      <th style="width:150px">Status</th>
+      <th style="width:110px">Updated</th>
+      <th style="width:70px"></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for a in applications %}
+    <tr>
+      <td>
+        <a href="/job/{{ a.job_id }}" style="font-weight:600">{{ a.title }}</a>
+        <div style="font-size:12.5px;color:var(--text-faint);margin-top:2px">
+          {{ a.location or '—' }} · {{ a.source }}
+        </div>
+        {% if a.notes %}
+        <div class="notes">
+          {% for note in a.notes %}
+          <div><span class="when">{{ note.created_at[:10] }}</span>{{ note.note }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </td>
+      <td>{{ a.company }}</td>
+      <td>
+        <select class="status st-{{ a.status }}" onchange="setStatus(this, {{ a.application_id or a.id }})">
+          {% for s in statuses %}
+          <option value="{{ s }}" {{ 'selected' if a.status == s }}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </td>
+      <td style="color:var(--text-dim);font-size:13px">{{ a.updated_at.strftime('%b %d') if a.updated_at.strftime is defined else a.updated_at[:10] }}</td>
+      <td><button class="act" onclick="addNote({{ a.application_id or a.id }})">+ Note</button></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">
+  Nothing logged yet.<br>
+  Hit <em>Log applied</em> on a job, or tell the agent “log that I applied to the Caterpillar role”.
+</div>
+{% endif %}
+{% endblock %}

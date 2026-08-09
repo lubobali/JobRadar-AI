@@ -1,0 +1,57 @@
+# Databricks App config for the JobRadar-AI frontend. Capstone requirement 4.
+#
+# No credential here. lakebase.py resolves the connection URL at runtime from
+# the secret scope named below, so nothing sensitive is in source control or in
+# this file. Run setup_secrets.py once before the first deploy, and grant the
+# app's service principal READ on the scope - the step that looks like an
+# outage when it is forgotten, because the app starts healthy and then cannot
+# read its own secret.
+
+command:
+  - "python"
+  - "app.py"
+
+env:
+  - name: LAKEBASE_SECRET_SCOPE
+    value: "lubo-jobradar"
+  - name: LAKEBASE_SECRET_KEY
+    value: "lakebase-url"
+
+  # JobRadar lives in its own schema rather than its own database: this
+  # account cannot CREATE DATABASE on the shared Lakebase instance.
+  - name: LAKEBASE_SCHEMA
+    value: "jobradar"
+
+  # Databricks Apps run a single container, so a small pool is plenty and stays
+  # well clear of the Lakebase connection limit.
+  - name: LAKEBASE_POOL_MIN
+    value: "1"
+  - name: LAKEBASE_POOL_MAX
+    value: "8"
+
+  - name: JOBRADAR_USER_EMAIL
+    value: "data@lubobali.com"
+  - name: PAGE_SIZE
+    value: "25"
+
+  # pgvector defaults hnsw.ef_search to 40, which silently caps every search to
+  # about forty explored candidates. Measured: 40 -> 400 moved recall from 0.18
+  # to 0.80 on this index.
+  - name: HNSW_EF_SEARCH
+    value: "400"
+
+  # The embedding model cache must live somewhere writable in the container.
+  - name: HF_HOME
+    value: "/tmp/.cache/huggingface"
+  - name: HF_HUB_DISABLE_PROGRESS_BARS
+    value: "1"
+  - name: TOKENIZERS_PARALLELISM
+    value: "false"
+
+  # The agent's serving endpoint, for the chat bar. Left empty on purpose: the
+  # page works without it and says so, rather than failing obscurely.
+  - name: JOBRADAR_AGENT_ENDPOINT
+    value: ""
+
+  - name: LOG_LEVEL
+    value: "INFO"

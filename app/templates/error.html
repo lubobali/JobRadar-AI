@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Error · JobRadar-AI{% endblock %}
+{% block body %}
+<div class="empty" style="padding-top:96px">
+  <div style="font-size:42px;color:var(--border-lit);margin-bottom:10px">{{ status }}</div>
+  <div style="color:var(--text-dim)">{{ message }}</div>
+  <div style="margin-top:22px"><a href="/">Back to search</a></div>
+</div>
+{% endblock %}

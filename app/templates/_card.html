@@ -1,0 +1,32 @@
+{# One job card, shared by Search and Saved so the two can never drift apart. #}
+{% macro card(job, show_note=False) %}
+<div class="card">
+  <div class="card-head">
+    {% set score = job.fit_score %}
+    <div class="score {{ 's-high' if score and score >= 80 else 's-mid' if score and score >= 60 else 's-low' if score else 's-none' }}">
+      {{ score if score is not none else '—' }}
+    </div>
+    <div style="flex:1; min-width:0">
+      <h3 class="card-title"><a href="/job/{{ job.id or job.job_id }}">{{ job.title }}</a></h3>
+      <div class="card-meta">
+        {{ job.company }}
+        <span class="sep">·</span>{{ job.location or 'Location not stated' }}
+        <span class="sep">·</span>{{ job.source }}
+        {% if job.remote %}<span class="tag remote">remote</span>{% endif %}
+        {% if job.application_status %}<span class="tag applied">{{ job.application_status }}</span>{% endif %}
+      </div>
+      {% if job.reason %}<div class="reason">{{ job.reason }}</div>{% endif %}
+      {% if job.matched_text %}<div class="matched">“…{{ job.matched_text[:190] }}…”</div>{% endif %}
+      {% if show_note and job.note %}<div class="reason">{{ job.note }}</div>{% endif %}
+      <div class="card-actions">
+        <button class="act {{ 'done' if job.saved }}"
+                onclick="save(this, '{{ job.id or job.job_id }}')">{{ 'Saved' if job.saved else 'Save' }}</button>
+        <button class="act {{ 'done' if job.application_status }}"
+                {{ 'disabled' if job.application_status }}
+                onclick="apply(this, '{{ job.id or job.job_id }}')">{{ 'Applied' if job.application_status else 'Log applied' }}</button>
+        <a class="act" style="text-decoration:none" href="{{ job.url }}" target="_blank" rel="noopener">Open posting ↗</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endmacro %}

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "_card.html" import card %}
+{% block title %}Search · JobRadar-AI{% endblock %}
+{% block body %}
+
+<form class="searchbar" method="get">
+  <input type="search" name="q" value="{{ query }}"
+         placeholder="Search by meaning — “roles where I’d build streaming pipelines”">
+  <div class="filters">
+    <select name="source">
+      <option value="">All sources</option>
+      {% for s in sources %}
+      <option value="{{ s }}" {{ 'selected' if source == s }}>{{ s }}</option>
+      {% endfor %}
+    </select>
+    <label><input type="checkbox" name="remote" {{ 'checked' if remote_only }}> Remote only</label>
+    <select name="days">
+      <option value="">Any time</option>
+      {% for d in [3, 7, 14, 30] %}
+      <option value="{{ d }}" {{ 'selected' if posted_within_days == d }}>Last {{ d }} days</option>
+      {% endfor %}
+    </select>
+    <select name="score">
+      <option value="">Any score</option>
+      {% for s in [60, 70, 80, 90] %}
+      <option value="{{ s }}" {{ 'selected' if min_score == s }}>{{ s }}+</option>
+      {% endfor %}
+    </select>
+    <button type="submit">Apply</button>
+    {% if query or source or remote_only or posted_within_days or min_score %}
+    <a class="clear" href="/">clear</a>
+    {% endif %}
+  </div>
+</form>
+
+<div class="resultcount">
+  <strong>{{ '{:,}'.format(total) }}</strong>
+  {{ 'match' if total == 1 else 'matches' }}
+  {% if query %}ranked by similarity{% else %}ranked by fit score{% endif %}
+</div>
+
+{% for job in jobs %}{{ card(job) }}{% else %}
+<div class="empty">Nothing matches those filters.</div>
+{% endfor %}
+
+{% if pages > 1 %}
+<div class="pager">
+  {% if page > 1 %}<a href="?page={{ page - 1 }}&source={{ source or '' }}&score={{ min_score or '' }}&days={{ posted_within_days or '' }}{{ '&remote=on' if remote_only }}">← Previous</a>{% endif %}
+  <span>Page {{ page }} of {{ '{:,}'.format(pages) }}</span>
+  {% if page < pages %}<a href="?page={{ page + 1 }}&source={{ source or '' }}&score={{ min_score or '' }}&days={{ posted_within_days or '' }}{{ '&remote=on' if remote_only }}">Next →</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}
