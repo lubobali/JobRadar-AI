@@ -8,6 +8,53 @@
 
 ---
 
+## State of play — end of 2026-08-08
+
+**Done: Phases 0, 1, 2, 3.** Two of the five capstone requirements are finished
+and running on real data.
+
+| Req | What | Status |
+|---|---|---|
+| 1 | Spark data pipeline | **DONE** — 5,539 jobs written |
+| 2 | Third-party API integration | **DONE** — 8 sources, 113/129 fetches OK |
+| 3 | Unstructured data processing | next, Phase 4 |
+| 4 | Databricks App with frontend | Phase 6 |
+| 5 | Agent with read/write | Phase 5 — the repository half is already done |
+
+**Live right now**
+
+| | |
+|---|---|
+| Repo | https://github.com/lubobali/JobRadar-AI |
+| Tests | 610 fast, 26 live, ruff clean |
+| Lakebase | schema `jobradar`, 10 tables, **5,539 job postings** |
+| Secrets | scope `lubo-jobradar`, key `lakebase-url` |
+| DNS | `jobradar.lubot.ai` → 178.156.214.8, live and unused so far |
+| Databricks | Git folder `JobRadar-AI`, notebook `ingest_jobs` runs green |
+
+**Start here tomorrow: Phase 4.** 5,539 descriptions are sitting in
+`job_postings` with `job_embeddings` empty. Port `embeddings.py`, write
+`notebooks/embed_jobs.py`, run it. That is requirement 3.
+
+**Known open items, all small**
+
+- **0.5** Adzuna + USAJobs API keys are not in the secret scope. That is most of
+  the 16 failed sources. Everything works without them; two sources just return
+  nothing.
+- **2.5** The profile seeded so far is a placeholder string, not the real
+  resume. Phase 4.4 needs the real one to make matching mean anything.
+- **3.8** The ingest notebook is not scheduled as a Databricks Job yet.
+- **0.3** Never checked whether an App slot is free. Matters at Phase 6.
+
+**Two things that shaped the design and are worth not rediscovering**
+
+- `CREATE DATABASE` is refused, so everything lives in schema `jobradar` and
+  `lakebase.py` pins `search_path` on every connection.
+- Serverless has no `SparkContext`, so the fan-out is a UDF over a DataFrame and
+  the package is `%pip install`ed from git rather than shipped with `addPyFile`.
+
+---
+
 ## 1. The five requirements
 
 Every capstone must have all five. This is the whole grading surface, so it is
@@ -228,9 +275,10 @@ and records; it never applies on your behalf.
 
 ### Phase 0 — De-risk (20 min, before any code)
 
-- [ ] 0.1 Lakebase reachable, and a second **database** can be created in the
-      existing instance
-- [ ] 0.2 Spark available in a serverless notebook in this workspace
+- [x] 0.1 Lakebase reachable. `CREATE DATABASE` is **refused** on this account,
+      so JobRadar uses schema `jobradar` in the shared database instead
+- [x] 0.2 Spark available on serverless. **No `SparkContext`** there, so no
+      RDD API and no `addPyFile` (see below)
 - [ ] 0.3 An App slot is free
 - [x] 0.4 **DNS**: `jobradar.lubot.ai` → `178.156.214.8`, live
 - [ ] 0.5 Adzuna + USAJobs API keys located
@@ -239,16 +287,16 @@ and records; it never applies on your behalf.
 
 Nothing new is written. Everything green before moving on.
 
-- [ ] 1.1 Repo structure (§8), `.gitignore`, `pytest.ini`, venv
-- [ ] 1.2 **From `aws-job-streamer`**, via `scp` from EC2: the 8 fetchers +
-      `base.py`, `models.py`, `html_text.py`, `prefilter.py`, `fit.py`,
-      `location_rank.py`, `watchlist.py` — and their tests and fixtures
-- [ ] 1.3 **No HTTP layer is ported from SkyIndex-AI or SkyCast-AI.**
+- [x] 1.1 Repo structure, `.gitignore`, `pyproject.toml`, venv
+- [x] 1.2 Ported from `aws-job-streamer`: 8 fetchers + `base`, `models`,
+      `html_text`, `prefilter`, `fit`, `location_rank`, `watchlist`,
+      `scoring`, plus their tests and fixtures
+- [x] 1.3 **No HTTP layer ported from SkyIndex-AI or SkyCast-AI.**
       `aws-job-streamer` is 100% httpx and mocks with respx; the other two use
       requests. `fetchers/base.py` already supplies the shared client, timeouts
       and User-Agent. Two HTTP stacks and two mocking libraries in one repo
       would buy nothing.
-- [ ] 1.4 Rename the package `aws_job_streamer` → `jobradar` throughout
+- [x] 1.4 Package renamed `aws_job_streamer` → `jobradar` across 26 files
 - [x] 1.5 Full suite green — **534 passing**, ruff clean
 
 **Found during 1.5:** `fit.py` imports `ScoredJob` from `scoring.py`, so
