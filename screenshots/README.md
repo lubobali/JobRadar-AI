@@ -1,0 +1,100 @@
+# Screenshots
+
+Evidence that each capstone requirement runs, in the order a reader should look
+at them. Every number in these images is from the real system, not a fixture.
+
+---
+
+### 1. `01-req1-spark-ingest-run.png` — requirements 1 and 2
+
+The Spark ingest notebook's final report cell, on serverless compute, with the
+run's own output underneath:
+
+```
+sources 129 · sources_failed 16 · fetched 8314 · after_id_dedup 8222
+after_cross_source_dedup 8145 · after_prefilter 5539 · written 5539
+```
+
+Both deduplication passes are visible as separate numbers: 8,314 fetched become
+8,222 after `job_id` (the same posting fetched twice), then 8,145 after
+`cross_source_key` (the same job listed on two boards). The 16 failed sources
+are Adzuna and USAJobs, which need API keys — see "Deliberate deviations" in the
+main README.
+
+### 2. `02-lakebase-schema-10-tables.png` — the data model
+
+`schema.sql` applied to Lakebase, and the ten tables it created read back from
+`information_schema`. This is also why the schema is called `jobradar` rather
+than being its own database: `CREATE DATABASE` is refused on Lakebase.
+
+### 3. `03-req4-app-search-ranked.png` — requirement 4
+
+The Databricks App's Search tab. 5,540 jobs ranked by fit score, filters for
+source, remote, recency and score, and working Save / Log applied buttons on
+each card. Each score carries the reason the LLM gave for it.
+
+> Taken before the agent moved to its own **Ask** tab, so the chat appears here
+> as an overlay at the bottom. Screenshots 4 and 5 show the current layout.
+
+### 4. `04-req4-app-agent-numbered-search.png` — requirements 4 and 5
+
+The **Ask** tab. Ten roles, numbered, with company, location, salary, and the
+fit score where one exists. The numbering is a prompt rule, not a formatting
+accident — without it "the second one" in the next screenshot has nothing to
+count.
+
+### 5. `05-req5-app-agent-multiturn-save.png` — requirement 5, the write path
+
+Three turns in one image, and the most complete piece of evidence here:
+
+- **"Am I a fit for the second one?"** — resolved positionally to the Snowflake
+  role, answered against `get_profile` and `get_job` together. It leads with
+  *"Not a strong fit. The role scored 28"* and explains that the job is about
+  selling the platform rather than building on it.
+- **"save it"** — no title, no company, no id in the message. Answered
+  **"Saved the Senior Data Platform Architect role at Snowflake."** The `saved`
+  count on `/status` went 2 → 3.
+- **"What have I applied to?"** — reads the application logged earlier back out
+  of the database.
+
+`save it` is the hard turn: it needs the tool results from three turns earlier
+still in context. An earlier version of the page replayed only the visible text
+and the agent wrote a reconstructed id, which the foreign key refused. See
+[`../agent/agent_config.md`](../agent/agent_config.md).
+
+### 6. `06-req5-mcp-service-9-tools.png` — requirement 5, the wiring
+
+The MCP server registered as a Unity Catalog MCP Service,
+`bootcamp_students.lubo_jobradar.jobradar_mcp`, with **9 of 9 tools selected**.
+The `search_jobs` description is readable here — the tool descriptions are
+written for the agent, and say what the tool is for and what to do when it
+fails.
+
+### 7. `07-req5-agent-search-tool-call.png` — requirement 5, expanded
+
+The same question in the Agent Bricks playground, with the tool call expanded:
+the arguments the agent chose (`remote_only: true`, `top_k: 10`, and a query
+expanded into vocabulary the postings actually use) and the raw JSON that came
+back, `fit_score` and `fit_reason` included.
+
+### 8. `08-req5-agent-search-answer.png` — requirement 5, the read
+
+What the agent made of that output. Note the Snowflake role at #6 with its score
+of **28** and the reason quoted — cosine similarity ranked that same job
+**first**, at 0.742. The gap between the two is the argument for having both a
+retrieval layer and a ranking layer.
+
+### 9. `09-req5-agent-log-application-write.png` — requirement 5, the write
+
+**"Log that I applied to the Sardine one"** → `log_application` → *"Logged as
+applied, application 2."* The reply names the row that was written rather than
+saying "done", which is what lets a wrong write be caught.
+
+Nothing was sent to Sardine. No tool in this server contacts an employer.
+
+### 10. `10-req5-agent-parallel-read-back.png` — requirement 5, read after write
+
+**"What have I applied to so far, and what does the Sardine one actually want?"**
+The agent recognised a compound question and ran `list_applications` and
+`get_job` **in parallel**. The application from screenshot 9 is really in the
+database — this is a fresh read, not the agent remembering what it said.

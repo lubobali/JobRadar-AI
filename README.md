@@ -100,6 +100,10 @@ Let's Encrypt. Deploy script: [`scripts/deploy_mcp.sh`](scripts/deploy_mcp.sh).
 Every capstone must satisfy five requirements. Here is exactly where each one
 lives and how to check it.
 
+Screenshots of every one of them, with the numbers they produced, are in
+[`screenshots/`](screenshots/) — start with its
+[index](screenshots/README.md).
+
 | # | Requirement | Where it lives | Evidence it ran |
 |---|---|---|---|
 | **1** | **Data pipeline in Spark** | [`notebooks/ingest_jobs.py`](notebooks/ingest_jobs.py) — 129 source specs become a DataFrame, a UDF fans out the fetches across executors, results are exploded, deduplicated twice, and written to Lakebase | **5,540 postings** in `job_postings` from 113 of 129 successful fetches |
@@ -375,6 +379,7 @@ mcp_server/         the 9-tool MCP server and its bearer auth
 app/                the Databricks App: Flask, Jinja templates
 agent/              system_prompt.md, agent_config.md
 scripts/            deploy_mcp.sh, seed_profile.py, smoke_test.py
+screenshots/        evidence for each requirement, with an index
 tests/              802 tests
 PLAN.md             the build plan this was written against
 ```
