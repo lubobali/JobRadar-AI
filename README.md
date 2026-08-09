@@ -14,7 +14,7 @@ Databricks AI Bootcamp capstone, option 5.
 | **Repo** | https://github.com/lubobali/JobRadar-AI |
 | **Agent** | `jobradar-agent`, Databricks Agent Bricks |
 | **Database** | Lakebase (Postgres 17 + pgvector), schema `jobradar`, 10 tables |
-| **Tests** | 776 fast, 26 live, ruff clean |
+| **Tests** | 829 fast, 26 live, ruff clean |
 
 ---
 
@@ -112,15 +112,33 @@ Screenshots of every one of them, with the numbers they produced, are in
 | **4** | **Databricks App with frontend** | [`app/`](app/) — Flask + Jinja. Four tabs: ranked search with filters, Saved, Applied, and **Ask** — a full conversation with the agent, on the same page as the data it is writing to | Live at the App URL above |
 | **5** | **AI agent with read and write** | [`mcp_server/jobs_mcp_server.py`](mcp_server/jobs_mcp_server.py) — 9 tools, and [`agent/system_prompt.md`](agent/system_prompt.md) | Transcripts in [`agent/agent_config.md`](agent/agent_config.md); the agent logged application 2 and read it back |
 
-### The agent's nine tools
+### The agent's eleven tools
 
 | Read | Write |
 |---|---|
 | `search_jobs(query, top_k, source, remote_only, posted_within_days)` | `save_job(job_id, note)` |
 | `get_job(job_id)` | `log_application(job_id, status, note)` |
-| `list_applications(status)` | `update_application_status(application_id, status)` |
+| `list_applications(status, stale_days)` | `update_application_status(application_id, status)` |
 | `get_profile()` | `add_interview_note(application_id, note)` |
+| `draft_application_text(job_id, kind)` | `set_follow_up(application_id, follow_up_on)` |
 | | `add_contact(company, name, role, notes)` |
+
+`draft_application_text` is a read: it produces the most text of any tool and
+stores none of it. The draft belongs to the user, not the database.
+
+### Option 5's own capability list
+
+The capstone's job-hunting option names six things the agent should do. All six
+work:
+
+| Capability | Where |
+|---|---|
+| Search and rank postings against the profile | `search_jobs`, with `fit_score` |
+| Explain why a posting is or is not a match | `fit_reason` + `get_profile` |
+| Save a posting to a pipeline stage | `save_job`, `log_application`, `update_application_status` |
+| Draft a cover-letter snippet or resume bullet | `draft_application_text`, and three buttons on the job page |
+| Track interview notes and follow-up dates | `add_interview_note`, `set_follow_up` |
+| Surface stale applications | `list_applications(stale_days=...)` |
 
 ---
 
@@ -281,7 +299,7 @@ git clone https://github.com/lubobali/JobRadar-AI.git
 cd JobRadar-AI
 python3 -m venv venv && ./venv/bin/pip install -r requirements-dev.txt
 ./venv/bin/pip install -e .
-./venv/bin/python -m pytest -q          # 776 tests, no credentials needed
+./venv/bin/python -m pytest -q          # 829 tests, no credentials needed
 ```
 
 The fast suite mocks every external boundary, so it runs offline in under two
@@ -309,6 +327,19 @@ printed.
 
 Things I chose not to do, with reasons, so they read as decisions rather than
 gaps.
+
+**Drafting runs in the App, not on the MCP host.** It needs a Databricks
+identity to reach a Foundation Model. This workspace disables personal access
+tokens — *"Tokens are disabled for your organization or you do not have
+permissions to use them"* — so the outside host that runs the MCP server cannot
+hold one. A Databricks App authenticates natively, so the three Draft buttons on
+the job page work. The MCP tool ships anyway, uses the same module and the same
+prompt, and reports itself unavailable on a host without credentials rather than
+pretending. On a host with them it works unchanged.
+
+This is the third admin restriction in this workspace to shape the architecture,
+after no service principals and no dynamic client registration. Each one is
+documented where it bites rather than worked around silently.
 
 **Two of the eight APIs returned no data.** Adzuna and USAJobs need API keys I
 did not register for, which accounts for 14 of the 16 failed fetches. Both
@@ -342,7 +373,7 @@ costs nothing to do at the start.
 
 ## Testing
 
-802 tests, 776 of which need no credentials.
+855 tests, 829 of which need no credentials.
 
 | Area | Tests |
 |---|---|
@@ -380,7 +411,7 @@ app/                the Databricks App: Flask, Jinja templates
 agent/              system_prompt.md, agent_config.md
 scripts/            deploy_mcp.sh, seed_profile.py, smoke_test.py
 screenshots/        evidence for each requirement, with an index
-tests/              802 tests
+tests/              855 tests
 PLAN.md             the build plan this was written against
 ```
 

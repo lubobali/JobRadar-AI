@@ -18,6 +18,23 @@ from and write to your database.**
 | **Instructions** | the full text of [`system_prompt.md`](system_prompt.md) |
 | **Tools** | `bootcamp_students.lubo_jobradar.jobradar_mcp` (UC MCP Service) |
 
+### The eleven tools
+
+| Read | Write |
+|---|---|
+| `search_jobs` | `save_job` |
+| `get_job` | `log_application` |
+| `list_applications` (incl. `stale_days`) | `update_application_status` |
+| `get_profile` | `add_interview_note` |
+| `draft_application_text` | `set_follow_up` |
+| | `add_contact` |
+
+`draft_application_text` needs a Databricks identity, and this workspace
+disables personal access tokens, so the MCP host cannot hold one. The tool
+reports itself unavailable there rather than pretending; the same module,
+prompt and fence run in the Databricks App, where the identity is native, as
+three Draft buttons on the job page.
+
 ### The MCP connection
 
 | | |
