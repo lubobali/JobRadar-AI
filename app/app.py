@@ -27,7 +27,7 @@ from typing import Any
 
 from flask import Flask, abort, jsonify, render_template, request
 
-from jobradar import lakebase, matching, repository
+from jobradar import drafting, lakebase, matching, repository
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger("jobradar-app")
@@ -295,6 +295,43 @@ def api_note():  # noqa: ANN201
 # ---------------------------------------------------------------------------
 # The agent
 # ---------------------------------------------------------------------------
+
+
+@app.route("/api/draft", methods=["POST"])
+def api_draft():  # noqa: ANN201
+    """Draft application text for one posting.
+
+    This lives in the App rather than only in the MCP server for a reason worth
+    stating. Drafting calls a Databricks Foundation Model, which needs a
+    Databricks identity. The MCP server runs on an outside host, and this
+    workspace disables personal access tokens - so that host cannot hold one.
+    A Databricks App authenticates natively, so here it simply works.
+
+    The MCP tool still exists and still reports itself unavailable rather than
+    pretending. Same code, same prompt; only the identity differs.
+    """
+    body = request.get_json(silent=True) or {}
+    job_id = (body.get("job_id") or "").strip()
+    kind = (body.get("kind") or "cover_letter").strip()
+
+    if not job_id:
+        return jsonify({"error": "job_id must not be empty"}), 400
+    if kind not in drafting.KINDS:
+        return jsonify(
+            {"error": f"kind must be one of {', '.join(sorted(drafting.KINDS))}"}
+        ), 400
+
+    bundle = repository.job_for_drafting(user_id(), job_id)
+    if bundle is None:
+        return jsonify({"error": "No such job."}), 404
+
+    try:
+        text = drafting.DatabricksDrafter().draft(bundle["job"], bundle["profile"], kind)
+    except Exception as exc:
+        logger.warning("Drafting failed: %s", exc)
+        return jsonify({"error": f"The drafting model is unavailable ({type(exc).__name__})."}), 502
+
+    return jsonify({"kind": kind, "text": text})
 
 
 @app.route("/api/chat", methods=["POST"])

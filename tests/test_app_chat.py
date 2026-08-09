@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import importlib
 import sys
+from typing import ClassVar
 
 import pytest
 from flask.testing import FlaskClient
@@ -618,3 +619,104 @@ class TestChatRoute:
         response = client.post("/api/chat", json={"message": "find me spark jobs"})
         assert response.status_code == 200
         assert response.get_json()["reply"] == "echo: find me spark jobs"
+
+
+class TestDraftRoute:
+    """`/api/draft` - drafting delivered through the App.
+
+    It lives here as well as in the MCP server because drafting needs a
+    Databricks identity to reach the Foundation Model. A Databricks App has one
+    natively; the MCP host cannot, because this workspace disables personal
+    access tokens. Same code and same prompt on both sides - only the identity
+    differs, so this route is thin and the tests are about its edges.
+    """
+
+    JOB: ClassVar[dict] = {
+        "job": {"id": "abc", "title": "Data Engineer", "company": "Acme",
+                "location": "Remote", "description": "Pipelines."},
+        "profile": {"headline": "Data engineer", "skills": ["Spark"]},
+    }
+
+    def _wire(self, monkeypatch: pytest.MonkeyPatch, draft: object = "Dear Acme,") -> None:
+        monkeypatch.setattr(app_module, "_user_id", 1)
+        monkeypatch.setattr(
+            app_module.repository, "job_for_drafting", lambda uid, jid: self.JOB
+        )
+        if isinstance(draft, Exception):
+            def boom(self: object, j: object, p: object, k: object) -> str:
+                raise draft
+            monkeypatch.setattr(app_module.drafting.DatabricksDrafter, "draft", boom)
+        else:
+            monkeypatch.setattr(
+                app_module.drafting.DatabricksDrafter, "draft", lambda s, j, p, k: draft
+            )
+
+    def test_a_draft_comes_back(
+        self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._wire(monkeypatch)
+        response = client.post("/api/draft", json={"job_id": "abc"})
+        assert response.status_code == 200
+        assert response.get_json()["text"] == "Dear Acme,"
+
+    def test_cover_letter_is_the_default(
+        self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._wire(monkeypatch)
+        assert client.post("/api/draft", json={"job_id": "abc"}).get_json()["kind"] == (
+            "cover_letter"
+        )
+
+    @pytest.mark.parametrize("kind", ["cover_letter", "resume_bullet", "outreach"])
+    def test_every_kind_is_accepted(
+        self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch, kind: str
+    ) -> None:
+        self._wire(monkeypatch)
+        response = client.post("/api/draft", json={"job_id": "abc", "kind": kind})
+        assert response.status_code == 200
+
+    def test_an_unknown_kind_is_rejected_before_the_model_is_called(
+        self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A model call costs money and time; a typo should not spend either."""
+        called = []
+        monkeypatch.setattr(app_module, "_user_id", 1)
+        monkeypatch.setattr(
+            app_module.repository,
+            "job_for_drafting",
+            lambda uid, jid: called.append(jid) or self.JOB,
+        )
+        response = client.post("/api/draft", json={"job_id": "abc", "kind": "haiku"})
+        assert response.status_code == 400
+        assert called == []
+
+    def test_an_empty_job_id_is_rejected(self, client: FlaskClient) -> None:
+        assert client.post("/api/draft", json={"job_id": "  "}).status_code == 400
+
+    def test_a_missing_job_is_404(
+        self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(app_module, "_user_id", 1)
+        monkeypatch.setattr(app_module.repository, "job_for_drafting", lambda uid, jid: None)
+        assert client.post("/api/draft", json={"job_id": "nope"}).status_code == 404
+
+    def test_a_model_failure_is_502_and_leaks_nothing(
+        self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._wire(monkeypatch, ValueError("token dapi-secret rejected"))
+        response = client.post("/api/draft", json={"job_id": "abc"})
+        assert response.status_code == 502
+        assert "dapi-secret" not in response.get_data(as_text=True)
+
+    def test_it_writes_nothing(
+        self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Drafting is a read. The draft belongs to the user, not the database."""
+        writes = []
+        for name in ("save_job", "log_application", "add_interview_note"):
+            monkeypatch.setattr(
+                app_module.repository, name, lambda *a, **k: writes.append(1)
+            )
+        self._wire(monkeypatch)
+        client.post("/api/draft", json={"job_id": "abc"})
+        assert writes == []

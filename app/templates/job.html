@@ -48,10 +48,86 @@
   </div>
 </div>
 
+<style>
+.draftbar { display: flex; gap: 8px; align-items: center; margin: 18px 0 0; flex-wrap: wrap; }
+.draftbar .label { font-size: 12.5px; color: var(--text-faint); margin-right: 4px; }
+.draft {
+  margin-top: 12px; padding: 18px 20px; white-space: pre-wrap;
+  background: var(--surface); border: 1px solid var(--border-lit);
+  border-radius: var(--radius); font-size: 14.5px; line-height: 1.7;
+}
+.draft.err { color: var(--bad); border-color: #f8717133; }
+.draft-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 12px; color: var(--text-faint); margin-bottom: 10px;
+}
+.draft-head button {
+  background: none; border: 0; color: var(--accent); cursor: pointer;
+  font-size: 12px; padding: 0;
+}
+</style>
+
+<div class="draftbar">
+  <span class="label">Draft from your profile:</span>
+  <button class="act" onclick="draft(this, 'cover_letter')">Cover letter</button>
+  <button class="act" onclick="draft(this, 'resume_bullet')">Resume bullets</button>
+  <button class="act" onclick="draft(this, 'outreach')">Outreach message</button>
+</div>
+<div id="draft" style="display:none"></div>
+
 <div class="description">{{ job.description }}</div>
 
 <div style="font-size:12px;color:var(--text-faint);margin:14px 0 8px">
   This is the posting's own text, as published. Treated as untrusted input
   everywhere it is read.
 </div>
+{% endblock %}
+
+{% block script %}
+// Drafting runs HERE rather than only in the MCP server because it needs a
+// Databricks identity to reach the Foundation Model, and a Databricks App has
+// one natively. The MCP host cannot: this workspace disables personal access
+// tokens, so that deployment reports the tool unavailable instead.
+async function draft(button, kind) {
+  const panel = document.getElementById("draft");
+  const buttons = document.querySelectorAll(".draftbar button");
+
+  buttons.forEach(b => b.disabled = true);
+  button.textContent = "Writing…";
+  panel.style.display = "block";
+  panel.className = "draft";
+  panel.textContent = "…";
+
+  try {
+    const data = await post("/api/draft", {job_id: "{{ job.id }}", kind});
+    panel.className = "draft";
+    panel.innerHTML = "";
+
+    const head = document.createElement("div");
+    head.className = "draft-head";
+    head.innerHTML = "<span>Written from your profile and this posting. "
+                   + "Check it before you send it.</span>";
+
+    const copy = document.createElement("button");
+    copy.textContent = "Copy";
+    copy.onclick = () => navigator.clipboard.writeText(data.text)
+      .then(() => { copy.textContent = "Copied"; });
+    head.appendChild(copy);
+
+    const body = document.createElement("div");
+    // textContent, not innerHTML: this text is model output derived from a job
+    // description, and descriptions in this corpus contain HTML.
+    body.textContent = data.text;
+
+    panel.append(head, body);
+  } catch (err) {
+    panel.className = "draft err";
+    panel.textContent = err.message;
+  } finally {
+    buttons.forEach(b => b.disabled = false);
+    document.querySelectorAll(".draftbar button").forEach((b, i) => {
+      b.textContent = ["Cover letter", "Resume bullets", "Outreach message"][i];
+    });
+  }
+}
 {% endblock %}
