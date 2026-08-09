@@ -6,6 +6,8 @@ a real resume with an LLM, and puts an agent in front of the result that can
 both read the database and write to it.
 
 Databricks AI Bootcamp capstone, option 5.
+**Grading it?** Start at [SUBMISSION.md](SUBMISSION.md) — every URL and every
+requirement mapped to the file and the screenshot that proves it.
 
 | | |
 |---|---|

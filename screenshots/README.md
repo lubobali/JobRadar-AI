@@ -98,3 +98,29 @@ Nothing was sent to Sardine. No tool in this server contacts an employer.
 The agent recognised a compound question and ran `list_applications` and
 `get_job` **in parallel**. The application from screenshot 9 is really in the
 database — this is a fresh read, not the agent remembering what it said.
+
+### 11–13. Drafting — `11-req4-draft-cover-letter.png`, `12-…-resume-bullets.png`, `13-…-outreach.png`
+
+The option-5 capability "draft a tailored cover-letter snippet or resume
+bullet", on the job page: three buttons, three forms, all written from the
+stored posting and the stored profile.
+
+The same job in all three, so the differences are the point:
+
+- **Cover letter** — one paragraph, naming the specific overlap: *"I've shipped
+  production AI systems end-to-end — LLM gateways, agentic workflows, RAG
+  retrieval with pgvector — and I'm fluent with the exact stack you use."*
+- **Resume bullets** — three one-liners, each starting with a verb and carrying
+  a number where the profile gives one.
+- **Outreach** — a short message written to be read on a phone, ending
+  *"Let's talk."*
+
+Everything in them is from the profile. Nothing is invented, which is the rule
+the prompt spends most of its words on: a cover letter that claims a year of
+something is worse than no cover letter, because the interview finds out.
+
+These run in the **App** rather than through the MCP server. Drafting needs a
+Databricks identity to reach a Foundation Model, this workspace disables
+personal access tokens, and the MCP host is outside Databricks — so it cannot
+hold one. A Databricks App authenticates natively. Same module, same prompt,
+same untrusted-description fence; only the identity differs.
