@@ -4,7 +4,7 @@
 # MAGIC
 # MAGIC **Capstone requirement 3: unstructured data processing.**
 # MAGIC
-# MAGIC Job descriptions are the unstructured half of this project: 2–10KB of
+# MAGIC Job descriptions are the unstructured half of this project: 2-10KB of
 # MAGIC prose each, written by a different person at every company, in HTML that
 # MAGIC eight different APIs format eight different ways.
 # MAGIC

@@ -109,7 +109,7 @@ def _secret(key: str) -> str | None:
         return base64.b64decode(
             _client.secrets.get_secret(scope=SECRET_SCOPE, key=key).value
         ).decode("utf-8").strip()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"  {key}: not available ({type(exc).__name__})")
         return None
 
@@ -226,10 +226,11 @@ raw = fetched.select(F.explode("result.rows").alias("job")).select("job.*").cach
 
 print(f"fetched : {raw.count()} postings")
 print(f"failed  : {len(errors)} sources")
-for error in errors[:15]:
+ERRORS_SHOWN = 15
+for error in errors[:ERRORS_SHOWN]:
     print(f"   {error}")
-if len(errors) > 15:
-    print(f"   ... and {len(errors) - 15} more")
+if len(errors) > ERRORS_SHOWN:
+    print(f"   ... and {len(errors) - ERRORS_SHOWN} more")
 
 display(raw.groupBy("source").count().orderBy(F.desc("count")))
 

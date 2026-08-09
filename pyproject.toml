@@ -57,6 +57,30 @@ select = [
 # Every function in this module takes whatever the model sent and decides
 # whether it is usable. `Any` is the subject, not an omission.
 "mcp_server/validation.py" = ["ANN401"]
+# Databricks notebooks source-controlled as .py. These are not modules; they are
+# a cell sequence the notebook runtime executes top to bottom, and four of its
+# rules do not survive the translation:
+#
+#   F821  `spark` and `dbutils` are injected into the notebook's globals by the
+#         runtime. Importing them locally would shadow the real ones.
+#   E402  Imports MUST come after the `%pip install` cell and the
+#         `dbutils.library.restartPython()` that follows it. Moving them to the
+#         top means importing a package that is about to be reinstalled under a
+#         Python that is about to be restarted.
+#   PLC0415  Same reason, stated as "import not at top level".
+#   ANN     Cell-level helpers are read inline next to their only call site.
+#
+# Everything else stays on, so a genuine unused import or shadowed builtin in a
+# notebook is still an error. This is scoped, not switched off.
+#   N812  `from pyspark.sql import functions as F` is PySpark's own convention,
+#         used in its documentation and in every Spark codebase.
+#   PLR0913/0917  A Spark UDF's signature is dictated by the DataFrame columns
+#         it is applied to. `fetch` takes eight arguments because a source spec
+#         has eight fields; collapsing them into one struct to satisfy a linter
+#         would make the call site worse.
+"notebooks/**" = [
+    "F821", "E402", "PLC0415", "ANN001", "ANN201", "N812", "PLR0913", "PLR0917",
+]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "parents"
