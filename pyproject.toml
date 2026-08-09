@@ -54,6 +54,9 @@ select = [
 [tool.ruff.lint.per-file-ignores]
 # Asserts and magic values are the point of a test.
 "tests/**" = ["PLR2004", "S101"]
+# Every function in this module takes whatever the model sent and decides
+# whether it is usable. `Any` is the subject, not an omission.
+"mcp_server/validation.py" = ["ANN401"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "parents"
