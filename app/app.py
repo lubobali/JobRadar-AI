@@ -313,9 +313,35 @@ def api_chat():  # noqa: ANN201
         payload = _call_agent(message)
     except Exception as exc:
         logger.warning("Agent call failed: %s", exc)
-        return jsonify({"error": f"The agent is unavailable ({type(exc).__name__})."}), 502
+        return jsonify({"error": _agent_error(exc)}), 502
 
     return jsonify({"reply": _extract_reply(payload)})
+
+
+# The HTTP status is the whole diagnosis, and an exception type name is none of
+# it: "The agent is unavailable (HTTPError)" sent me to a notebook to find out
+# what any one of these four words would have told me directly. The status is
+# not sensitive - it is the response line, not the response - so it is shown.
+# The body still is not, because it can echo a request header back.
+_AGENT_ERRORS = {
+    403: (
+        "The app is not allowed to query the agent. Grant its service principal "
+        "CAN QUERY on the serving endpoint."
+    ),
+    404: "No serving endpoint by that name. Check JOBRADAR_AGENT_ENDPOINT.",
+    400: "The agent rejected the request shape. Its task type may have changed.",
+    429: "The agent is rate limited. Try again in a moment.",
+}
+
+
+def _agent_error(exc: Exception) -> str:
+    """A message that names the actual problem, without echoing the response."""
+    status = next((int(word) for word in str(exc).split() if word.isdigit()), None)
+    if status in _AGENT_ERRORS:
+        return f"{_AGENT_ERRORS[status]} (HTTP {status})"
+    if status:
+        return f"The agent returned HTTP {status}."
+    return f"The agent is unreachable ({type(exc).__name__})."
 
 
 # An Agent Bricks agent is served as task type "Agent (Responses)", which takes

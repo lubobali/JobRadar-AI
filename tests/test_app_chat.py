@@ -41,6 +41,56 @@ class TestExtractReply:
         }
         assert app_module._extract_reply(payload) == "Found 10 remote roles."
 
+    def test_the_real_envelope_from_the_live_endpoint(self) -> None:
+        """Captured verbatim from mas-6358401e-endpoint on 2026-08-09.
+
+        Abridged only in the text. Every key and every null is as the endpoint
+        sent it, because the nulls are the part that breaks a naive parser: a
+        reader that checks `payload["choices"]` first finds nothing, and one
+        that treats `content` as a string finds a list.
+        """
+        payload = {
+            "id": "resp_35614d83bb4f45628e6a9635f31c8b6b",
+            "created_at": None,
+            "error": None,
+            "instructions": None,
+            "model": None,
+            "object": "response",
+            "output": [
+                {
+                    "type": "message",
+                    "id": "msg_bdrk_01Qx5thzh1eUARpM6oMuigbk",
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "output_text",
+                            "text": "Hi! I'm JobRadar, your job search assistant.",
+                        }
+                    ],
+                }
+            ],
+            "parallel_tool_calls": None,
+            "reasoning": None,
+            "status": "completed",
+            "text": None,
+        }
+        assert app_module._extract_reply(payload) == (
+            "Hi! I'm JobRadar, your job search assistant."
+        )
+
+    def test_a_null_text_key_does_not_shadow_the_output(self) -> None:
+        """The live envelope carries `text: None` alongside the real reply.
+
+        `_extract_reply` checks `output` before the flat keys, but a reordering
+        would silently start returning "None" for every message. This fails if
+        anyone does that.
+        """
+        payload = {
+            "output": [{"content": [{"type": "output_text", "text": "real"}]}],
+            "text": None,
+        }
+        assert app_module._extract_reply(payload) == "real"
+
     def test_chat_completions_envelope(self) -> None:
         payload = {"choices": [{"message": {"role": "assistant", "content": "Logged."}}]}
         assert app_module._extract_reply(payload) == "Logged."
@@ -248,6 +298,60 @@ class TestChatRoute:
         assert response.status_code == 502
         assert "supersecrettoken" not in response.get_data(as_text=True)
         assert "ValueError" in response.get_json()["error"]
+
+    @pytest.mark.parametrize(
+        ("status", "expected"),
+        [
+            (403, "CAN QUERY"),
+            (404, "JOBRADAR_AGENT_ENDPOINT"),
+            (400, "request shape"),
+            (429, "rate limited"),
+        ],
+    )
+    def test_the_status_names_the_actual_problem(
+        self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch, status: int, expected: str
+    ) -> None:
+        """Each status has one cause here, and the message should say which.
+
+        "The agent is unavailable (HTTPError)" is true of all four and useful
+        for none of them.
+        """
+        monkeypatch.setattr(app_module, "AGENT_ENDPOINT", "mas-test-endpoint")
+
+        def boom(message: str) -> object:
+            raise RuntimeError(f"{status} from the agent endpoint: whatever")
+
+        monkeypatch.setattr(app_module, "_call_agent", boom)
+        payload = client.post("/api/chat", json={"message": "hi"}).get_json()
+        assert expected in payload["error"]
+        assert str(status) in payload["error"]
+
+    def test_an_unmapped_status_still_reports_the_number(
+        self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(app_module, "AGENT_ENDPOINT", "mas-test-endpoint")
+        monkeypatch.setattr(
+            app_module,
+            "_call_agent",
+            lambda message: (_ for _ in ()).throw(RuntimeError("418 from the agent endpoint: no")),
+        )
+        assert "418" in client.post("/api/chat", json={"message": "hi"}).get_json()["error"]
+
+    def test_the_response_body_is_never_echoed_to_the_user(
+        self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A serving endpoint can echo a request header back in its error body."""
+        monkeypatch.setattr(app_module, "AGENT_ENDPOINT", "mas-test-endpoint")
+        monkeypatch.setattr(
+            app_module,
+            "_call_agent",
+            lambda message: (_ for _ in ()).throw(
+                RuntimeError("403 from the agent endpoint: Authorization=Bearer dapi-secret")
+            ),
+        )
+        assert "dapi-secret" not in client.post(
+            "/api/chat", json={"message": "hi"}
+        ).get_data(as_text=True)
 
     def test_a_successful_call_returns_the_reply(
         self, client: FlaskClient, monkeypatch: pytest.MonkeyPatch
