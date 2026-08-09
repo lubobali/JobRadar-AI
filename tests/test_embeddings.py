@@ -10,6 +10,8 @@ max_seq_length 256, and an 800-character chunk tokenizes to 162 word-pieces.
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 import pytest
 
 from jobradar import embeddings, matching
@@ -124,7 +126,7 @@ class TestChunkJob:
 
 
 class TestProfileQuery:
-    PROFILE = {
+    PROFILE: ClassVar[dict] = {
         "headline": "Senior Data & AI Platform Engineer",
         "target_titles": ["Data Engineer", "AI Engineer"],
         "skills": ["Spark", "Python", "Postgres", "AWS", "Databricks"],
