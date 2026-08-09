@@ -3,7 +3,7 @@
 Three things are proved here, and only these three, because the SQL is already
 covered in test_repository and against a real Lakebase:
 
-  1. All nine tools are registered, and described well enough that an agent
+  1. Every tool is registered, and described well enough that an agent
      introspecting the server picks the right one.
   2. **No tool ever raises.** A raise reaches the agent as a transport failure
      it can only report as "the tool broke". A returned `{"error": ...}` is a
@@ -19,6 +19,7 @@ import asyncio
 import json
 import os
 from collections.abc import Callable
+from datetime import date
 
 import pytest
 from pytest import MonkeyPatch
@@ -28,17 +29,28 @@ os.environ.setdefault("JOBRADAR_USER_EMAIL", "test@example.test")
 import jobs_mcp_server as server
 
 from jobradar import repository
+from jobradar.drafting import DraftingError
 
 Wired = dict
 """What the `wired` fixture yields: the recorded calls, and a dict the test
 stages return values in."""
 
-READ_TOOLS = {"search_jobs", "get_job", "list_applications", "get_profile"}
+# draft_application_text is a READ despite producing the most text of any tool:
+# it stores nothing. Classifying it as a write would make the read/write split
+# below meaningless.
+READ_TOOLS = {
+    "search_jobs",
+    "get_job",
+    "list_applications",
+    "get_profile",
+    "draft_application_text",
+}
 WRITE_TOOLS = {
     "save_job",
     "log_application",
     "update_application_status",
     "add_interview_note",
+    "set_follow_up",
     "add_contact",
 }
 ALL_TOOLS = READ_TOOLS | WRITE_TOOLS
@@ -69,6 +81,8 @@ def wired(monkeypatch: MonkeyPatch) -> Wired:
         ("log_application", {"id": 5, "job_id": "j", "status": "applied"}),
         ("update_application_status", {"id": 5, "job_id": "j", "status": "screening"}),
         ("add_interview_note", {"id": 9, "application_id": 5, "note": "n"}),
+        ("set_follow_up", {"id": 5, "status": "applied", "follow_up_on": None}),
+        ("job_for_drafting", None),
         ("add_contact", {"id": 2, "company": "Acme", "name": "Jane"}),
         ("stats", {"jobs": 0}),
     ]:
@@ -84,10 +98,10 @@ def registered() -> dict:
 
 
 class TestRegistration:
-    def test_all_nine_tools_are_registered(self) -> None:
+    def test_every_tool_is_registered(self) -> None:
         assert set(registered()) == ALL_TOOLS
 
-    def test_four_read_and_five_write(self) -> None:
+    def test_reads_and_writes_are_classified(self) -> None:
         # Requirement 5 is an agent with read AND write. A read-only server
         # would be easier and would score badly.
         kinds = {name: kind for name, kind, _ in server.TOOL_SUMMARIES}
@@ -316,3 +330,161 @@ class TestPlainHttpRoutes:
         for name in ALL_TOOLS:
             assert name in body
         assert "not a website" in body
+
+
+class TestStaleApplications:
+    """`list_applications(stale_days=...)`.
+
+    The capstone's job-hunting option asks the agent to "surface stale
+    applications that haven't been updated in a while". This is that path.
+    """
+
+    def test_stale_days_reaches_the_repository(self, wired: Wired) -> None:
+        server.list_applications(stale_days=30)
+        name, _, kwargs = wired["calls"][-1]
+        assert name == "list_applications"
+        assert kwargs["stale_days"] == 30
+
+    def test_no_stale_days_means_no_filter(self, wired: Wired) -> None:
+        server.list_applications()
+        assert wired["calls"][-1][2]["stale_days"] is None
+
+    def test_a_string_from_the_agent_is_accepted(self, wired: Wired) -> None:
+        """Models send "14" as often as 14."""
+        server.list_applications(stale_days="14")
+        assert wired["calls"][-1][2]["stale_days"] == 14
+
+    def test_zero_days_is_floored_to_one(self, wired: Wired) -> None:
+        """"Stale for 0 days" is every open application.
+
+        A filter that does nothing while looking like it did something is worse
+        than no filter, because the answer is wrong and confident.
+        """
+        server.list_applications(stale_days=0)
+        assert wired["calls"][-1][2]["stale_days"] == 1
+
+    def test_nonsense_is_an_error_not_a_crash(self, wired: Wired) -> None:
+        result = server.list_applications(stale_days="soon")
+        assert result["error_type"] == "bad_request"
+        assert "whole number" in result["error"]
+
+    def test_the_response_carries_the_age_of_each_row(self, wired: Wired) -> None:
+        """The agent has to be able to say HOW stale, not just that it is."""
+        wired["returns"]["list_applications"] = [
+            {
+                "id": 5, "job_id": "j", "title": "T", "company": "C",
+                "status": "applied", "applied_at": None, "updated_at": None,
+                "days_since_update": 41, "follow_up_on": None, "notes": [],
+            }
+        ]
+        result = server.list_applications(stale_days=14)
+        assert result["applications"][0]["days_since_update"] == 41
+
+
+class TestFollowUp:
+    """`set_follow_up` - "track follow-up dates for saved applications"."""
+
+    def test_a_date_is_parsed_and_passed_through(self, wired: Wired) -> None:
+        server.set_follow_up(5, "2026-09-01")
+        name, args, _ = wired["calls"][-1]
+        assert name == "set_follow_up"
+        assert args[2] == date(2026, 9, 1)
+
+    def test_omitting_the_date_clears_it(self, wired: Wired) -> None:
+        """"I heard back, drop the reminder"."""
+        server.set_follow_up(5)
+        assert wired["calls"][-1][1][2] is None
+
+    def test_prose_dates_are_refused_rather_than_guessed(self, wired: Wired) -> None:
+        """A parser that accepts "next Tuesday" is one that guesses a year.
+
+        This value becomes a reminder the user acts on, so the tool takes a
+        real date and the agent is told to resolve relative ones itself.
+        """
+        result = server.set_follow_up(5, "next Tuesday")
+        assert result["error_type"] == "bad_request"
+        assert "YYYY-MM-DD" in result["error"]
+
+    def test_an_impossible_date_is_refused(self, wired: Wired) -> None:
+        assert server.set_follow_up(5, "2026-02-30")["error_type"] == "bad_request"
+
+    def test_another_users_application_is_not_found(self, wired: Wired) -> None:
+        """Ownership is checked in SQL; the tool must relay that as not_found."""
+        wired["returns"]["set_follow_up"] = None
+        result = server.set_follow_up(999, "2026-09-01")
+        assert result["error_type"] == "not_found"
+        assert "list_applications" in result["error"]
+
+
+class TestDrafting:
+    """`draft_application_text` - "draft a tailored cover-letter snippet"."""
+
+    @staticmethod
+    def _job() -> dict:
+        return {
+            "job": {
+                "id": "abc", "title": "Data Engineer", "company": "Acme",
+                "location": "Remote", "description": "Build pipelines.",
+            },
+            "profile": {"headline": "Data engineer", "skills": ["Spark"]},
+        }
+
+    def test_a_draft_comes_back_with_the_job_it_was_written_for(
+        self, wired: Wired, monkeypatch: MonkeyPatch
+    ) -> None:
+        wired["returns"]["job_for_drafting"] = self._job()
+        monkeypatch.setattr(
+            server.drafting.DatabricksDrafter, "draft", lambda self, j, p, k: "Dear Acme,"
+        )
+        result = server.draft_application_text("abc")
+        assert result["text"] == "Dear Acme,"
+        assert result["company"] == "Acme"
+        assert result["kind"] == "cover_letter"
+
+    def test_it_writes_nothing_to_the_database(
+        self, wired: Wired, monkeypatch: MonkeyPatch
+    ) -> None:
+        """It is classified as a read. It has to actually be one."""
+        wired["returns"]["job_for_drafting"] = self._job()
+        monkeypatch.setattr(
+            server.drafting.DatabricksDrafter, "draft", lambda self, j, p, k: "text"
+        )
+        server.draft_application_text("abc")
+        assert {name for name, _, _ in wired["calls"]} == {"job_for_drafting"}
+
+    @pytest.mark.parametrize("kind", ["cover_letter", "resume_bullet", "outreach"])
+    def test_every_kind_is_accepted(
+        self, wired: Wired, monkeypatch: MonkeyPatch, kind: str
+    ) -> None:
+        wired["returns"]["job_for_drafting"] = self._job()
+        monkeypatch.setattr(
+            server.drafting.DatabricksDrafter, "draft", lambda self, j, p, k: k
+        )
+        assert server.draft_application_text("abc", kind)["text"] == kind
+
+    def test_an_unknown_kind_names_the_known_ones(self, wired: Wired) -> None:
+        result = server.draft_application_text("abc", "haiku")
+        assert result["error_type"] == "bad_request"
+        assert "cover_letter" in result["error"]
+
+    def test_a_missing_job_is_not_found(self, wired: Wired) -> None:
+        wired["returns"]["job_for_drafting"] = None
+        assert server.draft_application_text("nope")["error_type"] == "not_found"
+
+    def test_a_model_failure_does_not_become_an_empty_draft(
+        self, wired: Wired, monkeypatch: MonkeyPatch
+    ) -> None:
+        """The agent must be told the tool failed, not handed "".
+
+        Handed an empty string it would write the cover letter itself, from
+        nothing, and present it as the tool's output.
+        """
+        wired["returns"]["job_for_drafting"] = self._job()
+
+        def boom(self: object, j: object, p: object, k: object) -> str:
+            raise DraftingError("the drafting endpoint returned nothing")
+
+        monkeypatch.setattr(server.drafting.DatabricksDrafter, "draft", boom)
+        result = server.draft_application_text("abc")
+        assert result["error_type"] == "internal_error"
+        assert "text" not in result

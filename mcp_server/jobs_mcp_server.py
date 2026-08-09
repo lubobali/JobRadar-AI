@@ -53,7 +53,7 @@ import validation
 from fastmcp import FastMCP
 from validation import BadArgument
 
-from jobradar import matching, repository
+from jobradar import drafting, matching, repository
 
 logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO"),
@@ -266,27 +266,42 @@ def get_job(job_id: str) -> dict[str, Any]:
 
 
 @mcp.tool
-def list_applications(status: str | None = None) -> dict[str, Any]:
+def list_applications(
+    status: str | None = None, stale_days: int | str | None = None
+) -> dict[str, Any]:
     """List the jobs the user has applied to, and where each one stands.
 
     This is the pipeline: one entry per application, newest activity first,
     with every note attached. Use it for "what have I applied to", "what is
     still open", "what have I not heard back about".
 
+    Set stale_days to answer "what have I not chased in a while" or "what is
+    going cold". It returns only applications untouched for that many days AND
+    still open - a rejection that has sat for a year is finished, not stale.
+    Every row carries days_since_update so you can say how long it has been.
+
     Args:
         status: Optionally filter to one of: interested, applied, screening,
             interviewing, offer, rejected, withdrawn.
+        stale_days: Optionally return only applications not updated in this
+            many days. 14 is a sensible default if the user just says "stale"
+            or "going cold" without a number.
 
     Returns:
         A count and an applications list, each with the job, its status, when
-        it was applied to, when it last changed, and its notes newest first.
-        On failure, "error" and "error_type".
+        it was applied to, when it last changed, how many days ago that was,
+        any follow-up date, and its notes newest first. On failure, "error"
+        and "error_type".
     """
     try:
         wanted = validation.clean_status(status, default="") if status else None
-        rows = repository.list_applications(get_user_id(), status=wanted or None)
+        days = validation.clean_stale_days(stale_days)
+        rows = repository.list_applications(
+            get_user_id(), status=wanted or None, stale_days=days
+        )
         return {
             "status_filter": wanted or "all",
+            "stale_days": days,
             "count": len(rows),
             "applications": [
                 {
@@ -299,6 +314,8 @@ def list_applications(status: str | None = None) -> dict[str, Any]:
                     "status": row["status"],
                     "applied_at": _iso(row["applied_at"]),
                     "updated_at": _iso(row["updated_at"]),
+                    "days_since_update": row.get("days_since_update"),
+                    "follow_up_on": _iso(row.get("follow_up_on")),
                     "notes": row.get("notes") or [],
                 }
                 for row in rows
@@ -491,6 +508,86 @@ def add_interview_note(application_id: int | str, note: str) -> dict[str, Any]:
 
 
 @mcp.tool
+def set_follow_up(application_id: int | str, follow_up_on: str | None = None) -> dict[str, Any]:
+    """Set or clear the date to chase an application.
+
+    For "remind me to follow up with them on the 20th" and for "I heard back,
+    drop the reminder" - pass no date to clear it.
+
+    This deliberately does NOT count as activity on the application. Setting a
+    reminder is not the same as chasing, and if it reset the clock the
+    application would stop looking stale at the exact moment it needed chasing.
+
+    Args:
+        application_id: The number from log_application or list_applications.
+        follow_up_on: A date as YYYY-MM-DD. Omit to clear an existing date.
+            Resolve relative dates like "next Tuesday" yourself before calling;
+            this takes a real date, not a description of one.
+
+    Returns:
+        The application with its new follow_up_on. If it is not this user's,
+        returns not_found. On failure, "error" and "error_type".
+    """
+    try:
+        updated = repository.set_follow_up(
+            get_user_id(),
+            validation.clean_application_id(application_id),
+            validation.clean_date(follow_up_on),
+        )
+        if updated is None:
+            return _not_found(
+                f"No application {application_id} for this user. "
+                "Call list_applications for current ids."
+            )
+        return {"updated": True, **{k: _iso(v) for k, v in updated.items()}}
+    except Exception as exc:
+        return _failed(exc)
+
+
+@mcp.tool
+def draft_application_text(job_id: str, kind: str = "cover_letter") -> dict[str, Any]:
+    """Draft application text for one specific posting, from the user's profile.
+
+    Writes from the STORED posting and the STORED profile, so the result is
+    about this job and this person rather than a generic template. It is
+    instructed not to claim any skill or experience the profile does not
+    contain - if the profile is thin, the draft is short.
+
+    This writes nothing to the database. It returns text for the user to use,
+    edit or throw away.
+
+    Args:
+        job_id: The id from search_jobs or get_job.
+        kind: One of "cover_letter" (a short opening paragraph),
+            "resume_bullet" (three one-line bullets), or "outreach" (a short
+            LinkedIn message). Defaults to cover_letter.
+
+    Returns:
+        The drafted text, plus the job it was written for. If the job does not
+        exist, returns not_found. If the drafting model is unavailable, returns
+        error_type internal_error - say so and do not write the text yourself.
+    """
+    try:
+        wanted = validation.clean_draft_kind(kind)
+        bundle = repository.job_for_drafting(get_user_id(), validation.clean_job_id(job_id))
+        if bundle is None:
+            return _not_found(
+                f"No job {job_id}. Call search_jobs for current ids."
+            )
+        job = bundle["job"]
+        text = drafting.DatabricksDrafter().draft(job, bundle["profile"], wanted)
+        return {
+            "kind": wanted,
+            "job_id": job["id"],
+            "title": job["title"],
+            "company": job["company"],
+            "text": text,
+        }
+    except Exception as exc:
+        return _failed(exc)
+
+
+@mcp.tool
 def add_contact(
     company: str, name: str, role: str | None = None, notes: str | None = None
 ) -> dict[str, Any]:
@@ -628,12 +725,16 @@ applies to a job, contacts anyone, or deletes anything a person produced.</p>
 TOOL_SUMMARIES = (
     ("search_jobs", "read", "Find postings by meaning, not keywords."),
     ("get_job", "read", "One posting in full, including its description."),
-    ("list_applications", "read", "The pipeline, with every note."),
+    ("list_applications", "read", "The pipeline, with every note. Finds stale ones."),
     ("get_profile", "read", "Headline, target roles, skills, ranking query."),
+    # Read, despite being the tool that produces the most text: it stores
+    # nothing. The draft goes to the user, who decides what to do with it.
+    ("draft_application_text", "read", "Draft a cover letter, bullets or outreach."),
     ("save_job", "write", "Bookmark a job. Saving is not applying."),
     ("log_application", "write", "Record an application the user already made."),
     ("update_application_status", "write", "Move it to a new stage."),
     ("add_interview_note", "write", "Append a note. Notes are never removed."),
+    ("set_follow_up", "write", "Set or clear the date to chase an application."),
     ("add_contact", "write", "Record a recruiter or hiring manager."),
 )
 

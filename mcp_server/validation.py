@@ -20,8 +20,10 @@ its call or relays it to the user.
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
+from jobradar.drafting import KINDS as DRAFT_KINDS
 from jobradar.repository import APPLICATION_STATUSES
 
 MAX_TOP_K = 50
@@ -30,6 +32,9 @@ out, and the cost of a bigger number is paid by the vector index."""
 
 DEFAULT_TOP_K = 10
 MAX_NOTE_CHARS = 4000
+# Five years. Past this, "stale" stops meaning anything and the query is just
+# scanning the whole table.
+MAX_STALE_DAYS = 1825
 MAX_QUERY_CHARS = 500
 """Longer than the model's own 256-token window, so nothing useful is lost by
 capping here - but short enough that a runaway prompt cannot be pasted in as a
@@ -190,6 +195,55 @@ def clean_min_score(value: Any) -> int | None:
     except (TypeError, ValueError):
         raise BadArgument(f"min_score must be a whole number 0-100, got {value!r}.") from None
     return max(0, min(score, 100))
+
+
+def clean_stale_days(value: Any) -> int | None:
+    """"Not touched in N days". None means no staleness filter at all.
+
+    Floored at 1 rather than 0: "stale for 0 days" is every open application,
+    which is a filter that does nothing while looking like it did something.
+    """
+    if value is None or value == "":
+        return None
+    try:
+        days = int(value)
+    except (TypeError, ValueError):
+        raise BadArgument(f"stale_days must be a whole number, got {value!r}.") from None
+    return max(1, min(days, MAX_STALE_DAYS))
+
+
+def clean_date(value: Any) -> date | None:
+    """A calendar date as YYYY-MM-DD. None clears the field.
+
+    Only ISO. The agent is told in the tool docstring to resolve "next Tuesday"
+    itself, because a date parser that accepts prose is a date parser that
+    silently guesses a year - and this value ends up in a reminder the user
+    will act on.
+    """
+    if value is None or value == "":
+        return None
+    if isinstance(value, date):
+        return value
+    if not isinstance(value, str):
+        raise BadArgument(f"follow_up_on must be a date as YYYY-MM-DD, got {value!r}.")
+    try:
+        return date.fromisoformat(value.strip())
+    except ValueError:
+        raise BadArgument(
+            f"follow_up_on must be a date as YYYY-MM-DD, got {value!r}."
+        ) from None
+
+
+def clean_draft_kind(value: Any) -> str:
+    """Which kind of text to draft. Invalid values name the valid ones."""
+    if value is None or value == "":
+        return "cover_letter"
+    wanted = str(value).strip().lower().replace("-", "_").replace(" ", "_")
+    if wanted not in DRAFT_KINDS:
+        raise BadArgument(
+            f"kind must be one of {', '.join(sorted(DRAFT_KINDS))}, got {value!r}."
+        )
+    return wanted
 
 
 def clean_flag(value: Any) -> bool:

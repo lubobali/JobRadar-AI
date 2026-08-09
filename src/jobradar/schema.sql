@@ -180,6 +180,10 @@ CREATE TABLE IF NOT EXISTS applications (
                                   'withdrawn')),
     applied_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- "Follow up with them on Tuesday" is a thing a job hunter says, and a date
+    -- the pipeline needs to be able to surface. A DATE and not a TIMESTAMPTZ:
+    -- nobody follows up at 14:30:00+00.
+    follow_up_on DATE,
     -- One application per job per user. Asking twice is a status change, not a
     -- second application, and without this the agent can create duplicates by
     -- being asked the same thing in two different ways.
@@ -188,6 +192,17 @@ CREATE TABLE IF NOT EXISTS applications (
 
 CREATE INDEX IF NOT EXISTS idx_applications_user_status
     ON applications (user_id, status);
+
+-- The table already existed on the deployed database before follow_up_on was
+-- added, and CREATE TABLE IF NOT EXISTS does not alter an existing table - it
+-- silently does nothing, and the column would be missing everywhere the schema
+-- had already been applied.
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS follow_up_on DATE;
+
+-- Partial: only rows with a date set are ever scanned for one.
+CREATE INDEX IF NOT EXISTS idx_applications_follow_up
+    ON applications (user_id, follow_up_on)
+    WHERE follow_up_on IS NOT NULL;
 
 
 CREATE TABLE IF NOT EXISTS interview_notes (

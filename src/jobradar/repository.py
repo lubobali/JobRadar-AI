@@ -24,6 +24,7 @@ import logging
 import os
 import re
 from collections.abc import Iterable, Sequence
+from datetime import date
 from typing import Any
 
 from psycopg2.extras import execute_values
@@ -548,15 +549,43 @@ def list_saved(user_id: int, limit: int = 100) -> list[dict]:
     return lakebase.run_query(sql, (user_id, limit))
 
 
-def list_applications(user_id: int, status: str | None = None) -> list[dict]:
-    """The Applied tab. Notes come back as a JSON array, newest first."""
-    clause = "AND a.status = %s" if status else ""
+# An application nobody has touched in this many days is stale by default. Two
+# weeks is roughly when "they will get back to me" turns into "they are not
+# going to". It is a default and not a rule; the caller can say otherwise.
+DEFAULT_STALE_DAYS = 14
+
+# Statuses where silence means nothing is coming and there is nothing to chase.
+CLOSED_STATUSES = ("offer", "rejected", "withdrawn")
+
+
+def list_applications(
+    user_id: int,
+    status: str | None = None,
+    stale_days: int | None = None,
+) -> list[dict]:
+    """The Applied tab. Notes come back as a JSON array, newest first.
+
+    `stale_days` narrows to applications untouched for that many days and still
+    open - the ones worth chasing. A rejection that has sat for a year is not
+    stale, it is finished, so CLOSED_STATUSES are excluded.
+    """
+    clauses = []
     params: list[Any] = [user_id]
     if status:
+        clauses.append("AND a.status = %s")
         params.append(status)
+    if stale_days is not None:
+        clauses.append(
+            "AND a.updated_at < now() - make_interval(days => %s) "
+            f"AND a.status <> ALL(ARRAY[{','.join(['%s'] * len(CLOSED_STATUSES))}])"
+        )
+        params.append(stale_days)
+        params.extend(CLOSED_STATUSES)
+    clause = " ".join(clauses)
 
     sql = f"""
-        SELECT a.id, a.status, a.applied_at, a.updated_at,
+        SELECT a.id, a.status, a.applied_at, a.updated_at, a.follow_up_on,
+               EXTRACT(DAY FROM now() - a.updated_at)::int AS days_since_update,
                j.id AS job_id, j.company, j.title, j.url, j.location, j.source,
                COALESCE(
                    (SELECT json_agg(json_build_object('note', n.note,
@@ -687,6 +716,48 @@ def add_interview_note(user_id: int, application_id: int, note: str) -> dict | N
         """,
         (application_id, note),
     )
+
+
+def set_follow_up(user_id: int, application_id: int, follow_up_on: date | None) -> dict | None:
+    """Set or clear the date to chase this application.
+
+    Ownership is checked in the SELECT for the same reason as add_interview_note:
+    the id came from a previous tool result, and nothing else stops the agent
+    passing someone else's.
+
+    Passing None clears the date, which is what "I heard back, drop the reminder"
+    has to mean. It does NOT touch updated_at - setting a reminder is not
+    activity on the application, and counting it as such would make an
+    application look fresh precisely when it needed chasing.
+    """
+    owner = lakebase.run_query_one(
+        "SELECT id FROM applications WHERE id = %s AND user_id = %s",
+        (application_id, user_id),
+    )
+    if owner is None:
+        return None
+    return lakebase.run_query_one(
+        """
+        UPDATE applications
+           SET follow_up_on = %s
+         WHERE id = %s
+        RETURNING id, status, follow_up_on, applied_at, updated_at
+        """,
+        (follow_up_on, application_id),
+    )
+
+
+def job_for_drafting(user_id: int, job_id: str) -> dict | None:
+    """Everything needed to write about one posting: the job and the profile.
+
+    One call rather than two, because a draft written from the description
+    without the profile is a generic cover letter, and every one of those reads
+    like a generic cover letter.
+    """
+    job = get_job(job_id, user_id=user_id)
+    if job is None:
+        return None
+    return {"job": job, "profile": get_profile(user_id)}
 
 
 def add_contact(
