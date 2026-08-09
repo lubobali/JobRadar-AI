@@ -102,6 +102,21 @@ ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/tmp
 
+# libpq looks for an OPTIONAL client certificate at ~/.postgresql/postgresql.crt
+# on every connection. ProtectHome=true hides /home, so that lookup returns
+# "Permission denied" rather than "No such file" - and libpq treats a
+# permission error as fatal where it would have shrugged off a missing file:
+#
+#   could not open certificate file "/home/jobradar/.postgresql/postgresql.crt":
+#   Permission denied
+#
+# Which surfaces as OperationalError with a correct URL, correct credentials,
+# and a connection that works from any shell on the same host. Pointing libpq
+# at paths that simply do not exist fixes it without weakening the sandbox;
+# this connection uses sslmode=require and no client certificate.
+Environment=PGSSLCERT=/tmp/no-client.crt
+Environment=PGSSLKEY=/tmp/no-client.key
+
 [Install]
 WantedBy=multi-user.target
 EOF
