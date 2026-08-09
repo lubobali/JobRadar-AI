@@ -48,10 +48,16 @@ env:
   - name: TOKENIZERS_PARALLELISM
     value: "false"
 
-  # The agent's serving endpoint, for the chat bar. Left empty on purpose: the
-  # page works without it and says so, rather than failing obscurely.
+  # The agent's serving endpoint, for the chat bar. Agent Bricks names these
+  # itself; this is `jobradar-agent`, published as task type "Agent (Responses)"
+  # - which is why the relay sends the Responses shape first. The app's service
+  # principal needs CAN QUERY on it, the same permission step that looks like an
+  # outage when it is missed.
+  #
+  # The page still works if this is wrong or empty. It says so instead of
+  # failing, because the frontend is not allowed to depend on the agent.
   - name: JOBRADAR_AGENT_ENDPOINT
-    value: ""
+    value: "mas-6358401e-endpoint"
 
   - name: LOG_LEVEL
     value: "INFO"

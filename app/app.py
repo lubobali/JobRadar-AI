@@ -310,19 +310,7 @@ def api_chat():  # noqa: ANN201
         return jsonify({"error": "message must not be empty"}), 400
 
     try:
-        import requests  # noqa: PLC0415
-        from databricks.sdk import WorkspaceClient  # noqa: PLC0415
-
-        client = WorkspaceClient()
-        response = requests.post(
-            f"{(client.config.host or '').rstrip('/')}"
-            f"/serving-endpoints/{AGENT_ENDPOINT}/invocations",
-            headers={**(client.config.authenticate() or {}), "Content-Type": "application/json"},
-            json={"messages": [{"role": "user", "content": message}]},
-            timeout=120,
-        )
-        response.raise_for_status()
-        payload = response.json()
+        payload = _call_agent(message)
     except Exception as exc:
         logger.warning("Agent call failed: %s", exc)
         return jsonify({"error": f"The agent is unavailable ({type(exc).__name__})."}), 502
@@ -330,29 +318,110 @@ def api_chat():  # noqa: ANN201
     return jsonify({"reply": _extract_reply(payload)})
 
 
+# An Agent Bricks agent is served as task type "Agent (Responses)", which takes
+# the OpenAI Responses shape - {"input": [...]} - not the chat-completions
+# {"messages": [...]} every other Databricks endpoint takes. Sending the wrong
+# one is a 400 that reads like an auth or availability problem.
+#
+# Both are sent rather than one, in that order, because the task type is a
+# property of how the agent was published and can change without this code
+# knowing. Trying the second shape only on a 4xx costs one wasted request in the
+# rare case and never silently returns the wrong thing.
+_AGENT_REQUEST_KEYS = ("input", "messages")
+
+# A 4xx is the endpoint rejecting this body; the other shape may be accepted.
+# A 5xx is the endpoint itself failing, and a different body will not help.
+_HTTP_BAD_REQUEST = 400
+_HTTP_SERVER_ERROR = 500
+
+
+def _call_agent(message: str) -> Any:  # noqa: ANN401 - whatever the endpoint sent
+    """POST to the serving endpoint, trying each request shape in turn.
+
+    Raises the last error if every shape was rejected, so the caller reports a
+    real failure rather than an empty reply.
+    """
+    import requests  # noqa: PLC0415
+    from databricks.sdk import WorkspaceClient  # noqa: PLC0415
+
+    client = WorkspaceClient()
+    url = (
+        f"{(client.config.host or '').rstrip('/')}"
+        f"/serving-endpoints/{AGENT_ENDPOINT}/invocations"
+    )
+    headers = {**(client.config.authenticate() or {}), "Content-Type": "application/json"}
+
+    last: Exception | None = None
+    for key in _AGENT_REQUEST_KEYS:
+        body = {key: [{"role": "user", "content": message}]}
+        response = requests.post(url, headers=headers, json=body, timeout=120)
+        if response.status_code < _HTTP_BAD_REQUEST:
+            return response.json()
+        last = requests.HTTPError(
+            f"{response.status_code} from the agent endpoint: {response.text[:300]}"
+        )
+        if response.status_code >= _HTTP_SERVER_ERROR:
+            break
+    raise last or RuntimeError("no request shape was attempted")
+
+
+def _text_of(item: Any) -> str | None:  # noqa: ANN401 - one node of an unknown envelope
+    """The text carried by one item of a response list, or None.
+
+    Handles the three ways an item carries text: as a bare string, as a
+    `content`/`text`/`message` string, or - the Responses API shape - as a list
+    of typed blocks of which only some are text. A tool-call block has no text
+    and must not be mistaken for an empty reply.
+    """
+    if isinstance(item, str):
+        return item or None
+    if not isinstance(item, dict):
+        return None
+
+    for key in ("content", "text", "message", "output_text"):
+        found = item.get(key)
+        if isinstance(found, str) and found:
+            return found
+        if isinstance(found, dict):
+            nested = _text_of(found)
+            if nested:
+                return nested
+        if isinstance(found, list):
+            blocks = [t for t in (_text_of(block) for block in found) if t]
+            if blocks:
+                return "\n".join(blocks)
+    return None
+
+
 def _extract_reply(payload: Any) -> str:  # noqa: ANN401 - whatever the endpoint sent
     """Pull the text out of whatever shape the endpoint returned.
 
     Serving endpoints differ in how they wrap a reply, and a page that only
-    understands one shape breaks on a model swap.
+    understands one shape breaks on a model swap. This understands
+    chat-completions (`choices`), Responses (`output`), and the plain forms.
+
+    Lists are scanned from the END BACKWARDS, not indexed at [-1]: a Responses
+    envelope interleaves reasoning and tool-call items with the message, and the
+    final item is often a tool call carrying no text at all. The last item that
+    actually has text is the reply.
     """
     if isinstance(payload, dict):
-        for key in ("output", "predictions", "choices", "messages"):
+        for key in ("output", "choices", "messages", "predictions"):
             value = payload.get(key)
-            if isinstance(value, list) and value:
-                item = value[-1]
-                if isinstance(item, str):
-                    return item
-                if isinstance(item, dict):
-                    for text_key in ("content", "text", "message"):
-                        found = item.get(text_key)
-                        if isinstance(found, str):
-                            return found
-                        if isinstance(found, dict) and isinstance(found.get("content"), str):
-                            return found["content"]
-        for key in ("content", "text", "answer"):
-            if isinstance(payload.get(key), str):
-                return payload[key]
+            if isinstance(value, list):
+                for item in reversed(value):
+                    text = _text_of(item)
+                    if text:
+                        return text
+        for key in ("content", "text", "answer", "result"):
+            found = payload.get(key)
+            if isinstance(found, str) and found:
+                return found
+    elif isinstance(payload, str) and payload:
+        return payload
+
+    # Nothing recognisable. Showing the raw envelope beats showing nothing,
+    # because it is the only clue about a shape this does not yet handle.
     return str(payload)[:2000]
 
 
