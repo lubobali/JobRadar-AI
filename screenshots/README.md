@@ -17,9 +17,12 @@ after_cross_source_dedup 8145 · after_prefilter 5539 · written 5539
 
 Both deduplication passes are visible as separate numbers: 8,314 fetched become
 8,222 after `job_id` (the same posting fetched twice), then 8,145 after
-`cross_source_key` (the same job listed on two boards). The 16 failed sources
-are Adzuna and USAJobs, which need API keys — see "Deliberate deviations" in the
-main README.
+`cross_source_key` (the same job listed on two boards).
+
+> Taken on an earlier run, when Adzuna's credentials were not reaching the Spark
+> executors — hence 16 failed sources and 5,539 written. Adzuna works now and the
+> corpus is 5,718 across six sources; see screenshot 14. The cause is written up
+> under "The parts that were not obvious" in the main README.
 
 ### 2. `02-lakebase-schema-10-tables.png` — the data model
 
@@ -29,8 +32,8 @@ than being its own database: `CREATE DATABASE` is refused on Lakebase.
 
 ### 3. `03-req4-app-search-ranked.png` — requirement 4
 
-The Databricks App's Search tab. 5,540 jobs ranked by fit score, filters for
-source, remote, recency and score, and working Save / Log applied buttons on
+The Databricks App's Search tab. Every stored job ranked by fit score, filters
+for source, remote, recency and score, and working Save / Log applied buttons on
 each card. Each score carries the reason the LLM gave for it.
 
 > Taken before the agent moved to its own **Ask** tab, so the chat appears here
@@ -65,7 +68,12 @@ and the agent wrote a reconstructed id, which the foreign key refused. See
 ### 6. `06-req5-mcp-service-9-tools.png` — requirement 5, the wiring
 
 The MCP server registered as a Unity Catalog MCP Service,
-`bootcamp_students.lubo_jobradar.jobradar_mcp`, with **9 of 9 tools selected**.
+`bootcamp_students.lubo_jobradar.jobradar_mcp`, with **all tools selected**.
+
+> The image shows 9, which is what existed when it was taken. There are 11 now —
+> `draft_application_text` and `set_follow_up` were added later. "Automatically
+> include tools added to this server in the future" is ticked in the same
+> screenshot, which is why the agent picked them up without re-registering.
 The `search_jobs` description is readable here — the tool descriptions are
 written for the agent, and say what the tool is for and what to do when it
 fails.
@@ -124,3 +132,31 @@ Databricks identity to reach a Foundation Model, this workspace disables
 personal access tokens, and the MCP host is outside Databricks — so it cannot
 hold one. A Databricks App authenticates natively. Same module, same prompt,
 same untrusted-description fence; only the identity differs.
+
+### 14. `14-req6-insights-cdf-dashboard.png` — requirement 6
+
+The App's **Insights** tab. Every number on it was computed in Delta from a
+Change Data Feed and published back to Lakebase; the page itself calculates
+nothing. Each panel names the change type it came from — `CDF insert`,
+`CDF update_postimage`, `CDF delete`, or the Delta mirror's current state — so
+no figure on the page is ambiguous about its provenance.
+
+Visible here:
+
+- **Corpus by source**, six sources including **adzuna 177** — the API that
+  produced nothing until its credentials reached the Spark executors.
+- **Postings ingested**, the same six from `CDF insert` rather than from a
+  `COUNT(*)`. The two agreeing is the point: one is current state, the other is
+  reconstructed from the change feed.
+- **Status transitions**, reading *"nothing recorded yet"*.
+
+That last panel is the honest one, and worth not skipping past. At the time of
+this run every row in the feed was an `insert` — the mirrors had just been
+created, so there was nothing for an application to transition *from*. The panel
+says so rather than rendering a zero, because "no transitions have happened" and
+"transitions are broken" would otherwise look identical.
+
+Transitions appear on the next run after any status change: the MERGE produces
+`update_preimage` / `update_postimage` pairs, and the postimage rows are what
+that panel counts. The code path is the same one already producing the insert
+counts beside it.

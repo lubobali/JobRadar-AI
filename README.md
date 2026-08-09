@@ -72,12 +72,17 @@ flowchart TB
         D1[("job_postings · job_embeddings<br/>job_scores · applications<br/>saved_jobs · interview_notes<br/>contacts · profiles · skills · users")]
     end
 
+    subgraph cdf["Change Data Feed (requirement 6)"]
+        F1["cdf_analytics<br/>Delta mirrors, enableChangeDataFeed"]
+        F2["table_changes()<br/>-> jobradar_analytics_daily"]
+    end
+
     subgraph front["Frontends"]
         E1["Databricks App<br/>Flask + Jinja (requirement 4)"]
         E2["jobradar-agent<br/>Agent Bricks (requirement 5)"]
     end
 
-    E3["MCP server on Hetzner<br/>9 tools: 4 read, 5 write"]
+    E3["MCP server on Hetzner<br/>11 tools: 5 read, 6 write"]
 
     A1 --> B1 --> B2 --> D1
     D1 --> C1 --> C2 --> D1
@@ -85,6 +90,8 @@ flowchart TB
     D1 --> E1
     E2 <--> E3 <--> D1
     E1 -.->|/api/chat| E2
+    D1 --> F1 --> F2 -->|publish| D1
+    D1 -->|Insights tab| E1
 ```
 
 **Why the MCP server is on my own box and not a Databricks App.** The Databricks
@@ -111,7 +118,7 @@ Screenshots of every one of them, with the numbers they produced, are in
 |---|---|---|---|
 | **1** | **Data pipeline in Spark** | [`notebooks/ingest_jobs.py`](notebooks/ingest_jobs.py) — 129 source specs become a DataFrame, a UDF fans out the fetches across executors, results are exploded, deduplicated twice, and written to Lakebase | **5,718 postings** in `job_postings` |
 | **2** | **Third-party API integration** | [`src/jobradar/fetchers/`](src/jobradar/fetchers/) — 8 clients: Greenhouse, Ashby, Lever, Workday, Remotive, Breezy, Adzuna, USAJobs | 6 sources with data: greenhouse 3,040 · ashby 2,335 · **adzuna 177** · lever 97 · workday 50 · remotive 19 |
-| **3** | **Unstructured data processing** | [`src/jobradar/embeddings.py`](src/jobradar/embeddings.py) + [`notebooks/embed_jobs.py`](notebooks/embed_jobs.py) (HTML to contextual chunks to `vector(384)`), and [`src/jobradar/scoring.py`](src/jobradar/scoring.py) (an LLM reading each description against the resume) | **60,860+ vectors**; **300 LLM-scored**, scores spanning 8 to 92, mean 42 |
+| **3** | **Unstructured data processing** | [`src/jobradar/embeddings.py`](src/jobradar/embeddings.py) + [`notebooks/embed_jobs.py`](notebooks/embed_jobs.py) (HTML to contextual chunks to `vector(384)`), and [`src/jobradar/scoring.py`](src/jobradar/scoring.py) (an LLM reading each description against the resume) | **60,860 vectors** over 5,540 jobs; **300 LLM-scored**, spanning 8 to 92, mean 42 |
 | **4** | **Databricks App with frontend** | [`app/`](app/) — Flask + Jinja. Four tabs: ranked search with filters, Saved, Applied, and **Ask** — a full conversation with the agent, on the same page as the data it is writing to | Live at the App URL above |
 | **5** | **AI agent with read and write** | [`mcp_server/jobs_mcp_server.py`](mcp_server/jobs_mcp_server.py) — 11 tools, 5 read and 6 write, and [`agent/system_prompt.md`](agent/system_prompt.md) | Transcripts in [`agent/agent_config.md`](agent/agent_config.md); the agent logged application 2 and read it back |
 | **6** | **Change Data Feed → Delta analytics** | [`notebooks/cdf_analytics.py`](notebooks/cdf_analytics.py) — the operational tables mirrored into Delta with CDF on, `table_changes()` aggregated into `jobradar_analytics_daily`, results published back to Lakebase | 4 Delta tables with `enableChangeDataFeed = true`; the App's **Insights** tab renders it |
@@ -368,6 +375,20 @@ against JSON endpoints in the same file.
 
 **The ingest notebook is not on a schedule.** It runs on demand. A scheduled job
 would have made the numbers in this README move while it was being graded.
+
+**178 of the 5,718 postings have no vectors yet.** They are the Adzuna rows,
+written after the last embedding run. `embed_jobs` derives "pending" from the
+data rather than from a cursor — a job is pending when no vector exists for its
+id, its current `content_hash` and this model — so running it embeds exactly
+those 178 and nothing else. They are searchable by filter but not by meaning
+until then. The count is stated rather than rounded away because "60,860 vectors
+covering all 5,718 jobs" would have been the easy sentence and the false one.
+
+**Status transitions on the Insights page read zero at the time of the last
+run.** Every row in the change feed was an `insert`: the Delta mirrors had just
+been created, so no application had anything to transition from. The panel says
+"nothing recorded yet" rather than rendering a zero, because a feature that has
+not been exercised and a feature that is broken should not look alike.
 
 **A single user in the database, but multi-user schema throughout.** Every table
 carries `user_id` and every query in [`repository.py`](src/jobradar/repository.py)
