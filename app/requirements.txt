@@ -4,7 +4,23 @@
 # subfolder, so `from jobradar import ...` has nothing to resolve against
 # unless it is a real dependency - which is what crashed the first deploy:
 # "App built successfully" followed immediately by "App crashed at startup".
-jobradar @ git+https://github.com/lubobali/JobRadar-AI.git@main
+#
+# PINNED TO A TAG, and the tag MUST be bumped whenever src/jobradar changes.
+#
+# Not for reproducibility - for the deploy to happen at all. Databricks Apps
+# decides whether to run pip by diffing THIS FILE:
+#
+#   [INFO] Requirements have not changed. Skipping installation.
+#
+# With `@main` this file never changes, so pip never runs, so the App keeps
+# whatever it installed the first time. A new module in src/jobradar therefore
+# deploys as a crash:
+#
+#   ImportError: cannot import name 'drafting' from 'jobradar'
+#
+# Bumping the version in pyproject.toml does NOT fix this. Nothing inside the
+# package can, because pip is not consulted. Only this line changing does.
+jobradar @ git+https://github.com/lubobali/JobRadar-AI.git@v0.4.0
 
 flask>=3.0.3
 psycopg2-binary>=2.9.9
