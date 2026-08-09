@@ -179,6 +179,57 @@ def applied_page():  # noqa: ANN201
     )
 
 
+@app.route("/insights")
+def insights_page():  # noqa: ANN201
+    """Analytics computed in Delta from a Change Data Feed. Requirement 6.
+
+    Every number here was derived from the CDF of the Delta mirrors, not from a
+    query against the operational tables. That distinction is the point: the
+    transition counts describe what MOVED, and Postgres only knows where things
+    currently are.
+
+    The page reads the published rows over the Postgres connection it already
+    has. See notebooks/cdf_analytics.py for the pipeline that fills them.
+    """
+    rows = repository.analytics(days=90)
+
+    grouped: dict[str, list[dict]] = {}
+    for row in rows:
+        grouped.setdefault(row["metric"], []).append(row)
+
+    # Totals per dimension, so "applied 3, screening 1" reads at a glance rather
+    # than as a list of days.
+    def totals(metric: str) -> list[tuple[str, int]]:
+        counts: dict[str, int] = {}
+        for row in grouped.get(metric, []):
+            counts[row["dimension"] or "total"] = (
+                counts.get(row["dimension"] or "total", 0) + row["value"]
+            )
+        return sorted(counts.items(), key=lambda kv: -kv[1])
+
+    return render_template(
+        "insights.html",
+        tab="insights",
+        agent_ready=bool(AGENT_ENDPOINT),
+        computed_at=repository.analytics_computed_at(),
+        pipeline_now=totals("pipeline_now"),
+        corpus_now=totals("corpus_now"),
+        transitions=totals("status_transitions"),
+        created=totals("applications_created"),
+        ingested=totals("postings_ingested"),
+        saved=totals("jobs_saved"),
+        unsaved=totals("jobs_unsaved"),
+        by_day=sorted(
+            (
+                (row["day"], row["metric"], row["dimension"], row["value"])
+                for row in rows
+                if row["metric"] in ("status_transitions", "applications_created", "jobs_saved")
+            ),
+            reverse=True,
+        )[:25],
+    )
+
+
 @app.route("/chat")
 def chat_page():  # noqa: ANN201
     """The agent, on its own page.

@@ -229,3 +229,34 @@ CREATE TABLE IF NOT EXISTS contacts (
 
 CREATE INDEX IF NOT EXISTS idx_contacts_user_company
     ON contacts (user_id, company);
+
+
+-- ---------------------------------------------------------------------------
+-- Analytics, computed in Delta and published back here.
+--
+-- Capstone requirement 6: Change Data Feed into a Delta analytics table.
+--
+-- The direction is deliberate. Lakebase is the OLTP store the app and the agent
+-- write to; Delta is where the HISTORY of those writes is reconstructed, using
+-- Change Data Feed, and aggregated. The results come back here for one reason:
+-- the app already has a Postgres connection and no Delta one, and adding a SQL
+-- warehouse dependency to a page that renders six numbers would be a poor
+-- trade.
+--
+-- So this table is a published artefact, never edited by hand. Every row is
+-- replaced on each analytics run.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS analytics_daily (
+    day          DATE   NOT NULL,
+    metric       TEXT   NOT NULL,
+    -- The dimension the metric is broken down by: a status for transitions, a
+    -- source for ingest, NULL for a plain daily total.
+    dimension    TEXT,
+    value        BIGINT NOT NULL,
+    computed_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (day, metric, dimension)
+);
+
+CREATE INDEX IF NOT EXISTS idx_analytics_daily_metric
+    ON analytics_daily (metric, day DESC);

@@ -24,7 +24,7 @@ import logging
 import os
 import re
 from collections.abc import Iterable, Sequence
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from psycopg2.extras import execute_values
@@ -745,6 +745,39 @@ def set_follow_up(user_id: int, application_id: int, follow_up_on: date | None) 
         """,
         (follow_up_on, application_id),
     )
+
+
+def analytics(metric: str | None = None, days: int = 30) -> list[dict]:
+    """Rows published by the Delta analytics run. Requirement 6.
+
+    Read-only here. Nothing in the app or the agent writes this table; it is
+    replaced wholesale by `notebooks/cdf_analytics.py`, which computes it from a
+    Delta Change Data Feed. Treating it as read-only in this process is what
+    keeps "where did this number come from" answerable.
+
+    Returns an empty list when the analytics run has never happened, which the
+    page is expected to say out loud rather than render as zeroes.
+    """
+    clause = "AND metric = %s" if metric else ""
+    params: list[Any] = [days]
+    if metric:
+        params.append(metric)
+    return lakebase.run_query(
+        f"""
+        SELECT day, metric, dimension, value, computed_at
+          FROM analytics_daily
+         WHERE day >= current_date - make_interval(days => %s)
+               {clause}
+         ORDER BY metric, day DESC, value DESC
+        """,
+        tuple(params),
+    )
+
+
+def analytics_computed_at() -> datetime | None:
+    """When the analytics were last published, or None if never."""
+    row = lakebase.run_query_one("SELECT max(computed_at) AS at FROM analytics_daily")
+    return row["at"] if row else None
 
 
 def job_for_drafting(user_id: int, job_id: str) -> dict | None:

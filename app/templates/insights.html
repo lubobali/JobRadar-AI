@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Insights — JobRadar{% endblock %}
+
+{% block body %}
+<style>
+.lede { margin: 26px 0 22px; }
+.lede h1 { font-size: 22px; margin: 0 0 8px; letter-spacing: -0.02em; }
+.lede p { color: var(--text-dim); font-size: 14px; margin: 0; max-width: 720px; }
+.lede code { background: var(--surface-2); padding: 1px 6px; border-radius: 4px; font-size: 13px; }
+
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px 18px;
+}
+.panel h2 {
+  font-size: 12px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--text-faint); margin: 0 0 4px;
+}
+.panel .from {
+  font-size: 11.5px; color: var(--text-faint); margin: 0 0 12px;
+}
+.panel .from b { color: var(--accent); font-weight: 500; }
+
+.bar { display: flex; align-items: baseline; gap: 10px; margin-bottom: 7px; }
+.bar .k { font-size: 13.5px; color: var(--text-dim); flex: 0 0 auto; min-width: 92px; }
+.bar .track { flex: 1; height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+.bar .fill { display: block; height: 100%; background: var(--accent-dim); }
+.bar .v {
+  font-size: 13.5px; font-variant-numeric: tabular-nums; color: var(--text);
+  flex: 0 0 auto; min-width: 34px; text-align: right;
+}
+
+.none { color: var(--text-faint); font-size: 13px; font-style: italic; }
+.stamp { font-size: 12px; color: var(--text-faint); margin: 22px 0 0; }
+</style>
+
+<div class="lede">
+  <h1>Insights</h1>
+  <p>
+    Computed in Delta from a <b>Change Data Feed</b>, not queried from the
+    operational tables. That distinction is the whole point: Postgres knows
+    where each application <em>is</em>, and only the change feed knows what
+    <em>moved</em>. Pipeline: <code>notebooks/cdf_analytics.py</code>.
+  </p>
+</div>
+
+{% if not computed_at %}
+<div class="panel">
+  <h2>No analytics yet</h2>
+  <p class="none">
+    The Delta analytics run has not published anything. Run
+    <code>notebooks/cdf_analytics.py</code> and reload. Nothing else on the site
+    depends on it.
+  </p>
+</div>
+{% else %}
+
+{% macro bars(items, source) %}
+  <p class="from">from <b>{{ source }}</b></p>
+  {% if items %}
+    {% set top = items[0][1] %}
+    {% for key, value in items %}
+    <div class="bar">
+      <span class="k">{{ key }}</span>
+      <span class="track"><span class="fill" style="width: {{ (value / top * 100) | round }}%"></span></span>
+      <span class="v">{{ value }}</span>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p class="none">nothing recorded yet</p>
+  {% endif %}
+{% endmacro %}
+
+<div class="grid">
+  <div class="panel">
+    <h2>Status transitions</h2>
+    {{ bars(transitions, "CDF update_postimage") }}
+  </div>
+
+  <div class="panel">
+    <h2>Applications created</h2>
+    {{ bars(created, "CDF insert") }}
+  </div>
+
+  <div class="panel">
+    <h2>Jobs saved</h2>
+    {{ bars(saved, "CDF insert") }}
+  </div>
+
+  {% if unsaved %}
+  <div class="panel">
+    <h2>Jobs un-saved</h2>
+    {{ bars(unsaved, "CDF delete") }}
+  </div>
+  {% endif %}
+
+  <div class="panel">
+    <h2>Pipeline now</h2>
+    {{ bars(pipeline_now, "Delta mirror, current state") }}
+  </div>
+
+  <div class="panel">
+    <h2>Corpus by source</h2>
+    {{ bars(corpus_now, "Delta mirror, current state") }}
+  </div>
+
+  {% if ingested %}
+  <div class="panel">
+    <h2>Postings ingested</h2>
+    {{ bars(ingested, "CDF insert") }}
+  </div>
+  {% endif %}
+</div>
+
+{% if by_day %}
+<div class="panel" style="margin-top:14px">
+  <h2>Most recent changes</h2>
+  <p class="from">every row derived from <b>table_changes()</b></p>
+  <table>
+    <tr><th>Day</th><th>Metric</th><th>Dimension</th><th style="text-align:right">Count</th></tr>
+    {% for day, metric, dimension, value in by_day %}
+    <tr>
+      <td>{{ day }}</td>
+      <td>{{ metric.replace('_', ' ') }}</td>
+      <td>{{ dimension or '—' }}</td>
+      <td style="text-align:right; font-variant-numeric: tabular-nums">{{ value }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<p class="stamp">
+  Published {{ computed_at.strftime('%Y-%m-%d %H:%M UTC') }} by the Delta
+  analytics run. This page never computes anything itself; it renders what that
+  run wrote.
+</p>
+{% endif %}
+{% endblock %}
