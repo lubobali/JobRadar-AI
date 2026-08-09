@@ -328,29 +328,60 @@ def api_chat():  # noqa: ANN201
         logger.warning("Agent call failed: %s", exc)
         return jsonify({"error": _agent_error(exc)}), 502
 
-    return jsonify({"reply": _extract_reply(payload)})
+    # The raw output items go back to the client so it can send them again on
+    # the next turn. See _conversation for why the visible text is not enough.
+    output = payload.get("output") if isinstance(payload, dict) else None
+    return jsonify(
+        {
+            "reply": _extract_reply(payload),
+            "items": output if isinstance(output, list) else [],
+        }
+    )
 
 
 # The whole conversation is sent on every turn, because the endpoint keeps no
 # state between calls. Sending only the newest message is what makes an agent
-# that works in the Databricks playground fail on "save the second one" here:
-# it has no second one, and it has no idea it ever listed anything.
+# that works in the Databricks playground fail here: it has no idea it ever
+# listed anything.
 #
-# Trimmed to the last MAX_TURNS, because a long session eventually exceeds the
-# context window - and the failure is a 400 on a message that looks fine.
-MAX_TURNS = 20
+# And the conversation is not just the visible text. A Responses envelope
+# carries the agent's tool CALLS and their RESULTS as items alongside the
+# message, and those items are where the job ids live. Replaying only the prose
+# produced exactly one bug, which is worth stating plainly because it looked
+# like an agent problem and was not:
+#
+#   "save it" -> the agent had its own summary, no job id anywhere in context,
+#   and wrote a plausible-looking id it had reconstructed. Postgres refused it:
+#
+#     insert or update on table "saved_jobs" violates foreign key constraint
+#     "saved_jobs_job_id_fkey"
+#
+# The foreign key is why that became an error instead of a saved row pointing
+# at nothing. The fix is to replay the items, so the id it reads is the id the
+# tool returned.
+MAX_EXCHANGES = 8
 _ROLES = ("user", "assistant")
 
+# A role this app must never forward from a request body. The system prompt is
+# what tells the agent it cannot apply to anything on the user's behalf; the
+# page has no business being able to add to it or replace it.
+_FORBIDDEN_ROLES = ("system", "developer", "tool")
 
-def _conversation(body: dict) -> list[dict[str, str]]:
-    """The turns to send, from either request shape.
 
-    Accepts `messages` (the whole conversation) or `message` (a single turn),
-    so the endpoint is usable from a script as well as from the chat page.
+def _conversation(body: dict) -> list[dict]:
+    """The items to send, from any of the three request shapes.
+
+    `items` is the full replay, including tool calls - what the chat page
+    sends. `messages` is a plain conversation, and `message` is a single turn;
+    both stay supported so this is usable from a script.
 
     Raises ValueError with a message meant for a person, since every one of
     these is something the caller can fix.
     """
+    raw = body.get("items")
+    if raw is not None:
+        return _replay(raw)
+
     raw = body.get("messages")
     if raw is None:
         message = (body.get("message") or "").strip()
@@ -361,8 +392,8 @@ def _conversation(body: dict) -> list[dict[str, str]]:
     if not isinstance(raw, list) or not raw:
         raise ValueError("messages must be a non-empty list")
 
-    turns: list[dict[str, str]] = []
-    for item in raw[-MAX_TURNS:]:
+    turns: list[dict] = []
+    for item in raw:
         if not isinstance(item, dict):
             raise ValueError("every message must be an object with role and content")
         role = item.get("role")
@@ -376,7 +407,43 @@ def _conversation(body: dict) -> list[dict[str, str]]:
 
     if turns[-1]["role"] != "user":
         raise ValueError("the last message must be from the user")
-    return turns
+    return _trim(turns)
+
+
+def _replay(raw: object) -> list[dict]:
+    """Validate a full item replay - messages plus tool calls and results."""
+    if not isinstance(raw, list) or not raw:
+        raise ValueError("items must be a non-empty list")
+
+    items: list[dict] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            raise ValueError("every item must be an object")
+        role = item.get("role")
+        if role in _FORBIDDEN_ROLES:
+            raise ValueError(f"role must be one of {', '.join(_ROLES)}")
+        items.append(item)
+
+    last = items[-1]
+    if last.get("role") != "user":
+        raise ValueError("the last item must be from the user")
+    return _trim(items)
+
+
+def _trim(items: list[dict]) -> list[dict]:
+    """Keep the last MAX_EXCHANGES exchanges, cut only at a user message.
+
+    A long session eventually exceeds the context window, and the failure is a
+    400 on a message that looks perfectly fine. Trimming to a flat item count
+    would fix that and cause a worse one: a tool RESULT whose matching tool CALL
+    fell off the front is a malformed conversation, and the endpoint rejects the
+    whole request. Cutting only at a user message keeps every call with its
+    result.
+    """
+    starts = [i for i, item in enumerate(items) if item.get("role") == "user"]
+    if len(starts) <= MAX_EXCHANGES:
+        return items
+    return items[starts[-MAX_EXCHANGES] :]
 
 
 # The HTTP status is the whole diagnosis, and an exception type name is none of

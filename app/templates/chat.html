@@ -156,9 +156,14 @@
 
 {% block script %}
 // The conversation lives here and is sent in full on every turn, because the
-// serving endpoint keeps no state between calls. Without this, "save the second
-// one" has no second one to refer to.
-const history = [];
+// serving endpoint keeps no state between calls.
+//
+// These are ITEMS, not messages. The agent's tool calls and their results come
+// back in the response and go straight back in, because that is where the job
+// ids are. Keeping only the text it printed is what made "save it" write an id
+// the agent had reconstructed from its own summary - which Postgres rejected
+// against the foreign key, correctly.
+const items = [];
 
 function escapeHtml(text) {
   return text.replace(/[&<>"']/g, c => (
@@ -245,21 +250,23 @@ async function ask(message) {
   input.disabled = send.disabled = true;
 
   addTurn("user", escapeHtml(message));
-  history.push({role: "user", content: message});
+  items.push({role: "user", content: message});
 
   const pending = addTurn("agent", '<span class="thinking">Thinking</span>');
 
   try {
-    const data = await post("/api/chat", {messages: history});
+    const data = await post("/api/chat", {items});
     pending.innerHTML = markdown(data.reply);
-    history.push({role: "assistant", content: data.reply});
+    // Everything the agent produced this turn, tool calls included - not the
+    // rendered text. The next turn needs the ids, not the prose.
+    items.push(...(data.items || []));
   } catch (err) {
     pending.className = "bubble err";
     pending.textContent = err.message;
     // The failed turn comes back off the history. Leaving it means every later
     // turn re-sends a question the agent never answered, and it apologises for
     // something it did not do.
-    history.pop();
+    items.pop();
   } finally {
     input.disabled = send.disabled = false;
     input.focus();
