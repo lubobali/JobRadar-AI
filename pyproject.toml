@@ -16,7 +16,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jobradar"
-version = "0.2.0"
+version = "0.3.0"
 description = "AI job hunting copilot: Spark ingest, pgvector matching, and an MCP agent."
 requires-python = ">=3.11"
 dependencies = []

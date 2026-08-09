@@ -61,6 +61,22 @@ class FakeConnection:
 
 
 @pytest.fixture
+def searched(monkeypatch: MonkeyPatch) -> FakeCursor:
+    """Capture what search() sends.
+
+    search does not go through run_query: it needs `SET LOCAL hnsw.ef_search`
+    in the SAME transaction as the query, because that is a session GUC and the
+    pool hands out a different connection each time. So it takes a connection
+    directly, and the capture has to happen at the cursor.
+    """
+    cursor = FakeCursor()
+    monkeypatch.setattr(
+        repository.lakebase, "get_connection", lambda: FakeConnection(cursor)
+    )
+    return cursor
+
+
+@pytest.fixture
 def captured(monkeypatch: MonkeyPatch) -> Captured:
     """Capture every SQL string and parameter tuple the module sends."""
     calls: list[tuple[str, object]] = []
@@ -216,64 +232,74 @@ class TestFetchUnembedded:
 
 
 class TestSearch:
-    def test_orders_by_the_bare_distance_operator(self, captured: Captured) -> None:
+    def test_sets_ef_search_before_the_query(self, searched: FakeCursor) -> None:
+        """pgvector defaults hnsw.ef_search to 40, which silently caps everything.
+
+        A LIMIT of 3000 still gets answered out of a pool of about forty, so
+        asking for 300 results returned 35 - with no error, and with the rows
+        that did come back genuinely being the nearest of the ones examined.
+        The ones never examined were simply invisible.
+        """
+        repository.search([0.1] * 384, user_id=1)
+        first_sql, first_params = searched.statements[0]
+        assert "hnsw.ef_search" in first_sql
+        assert first_params == (repository.EF_SEARCH,)
+
+    def test_ef_search_is_set_locally_not_globally(self, searched: FakeCursor) -> None:
+        # SET LOCAL scopes it to this transaction. A plain SET would leak onto
+        # a pooled connection and change unrelated queries later.
+        repository.search([0.1] * 384, user_id=1)
+        assert "SET LOCAL" in searched.statements[0][0]
+
+    def test_orders_by_the_bare_distance_operator(self, searched: FakeCursor) -> None:
         # Only the bare form can be answered by the HNSW index. Wrapping it as
         # "1 - (...) DESC" still returns correct rows, from a full scan, which
         # is the worst kind of regression because nothing looks broken.
-        calls, _ = captured
         repository.search([0.1] * 384, user_id=1)
-        sql = calls[0][0]
-        assert "ORDER BY e.embedding <=> %s::vector" in sql
+        assert "ORDER BY e.embedding <=> %s::vector" in searched.statements[1][0]
 
-    def test_deduplicates_per_job_then_per_real_world_job(self, captured: Captured) -> None:
-        calls, _ = captured
+    def test_deduplicates_per_job_then_per_real_world_job(self, searched: FakeCursor) -> None:
         repository.search([0.1] * 384, user_id=1)
-        sql = calls[0][0]
+        sql = searched.statements[1][0]
         assert "DISTINCT ON (job_id)" in sql
         assert "DISTINCT ON (cross_source_key)" in sql
 
-    def test_it_does_not_deduplicate_on_the_chunk_text(self, captured: Captured) -> None:
+    def test_it_does_not_deduplicate_on_the_chunk_text(self, searched: FakeCursor) -> None:
         """The bug this replaced, kept as a test so it cannot come back.
 
         Hashing the chunk text was inherited from a corpus of weather alerts,
         where identical wording did mean the same alert reissued per county.
         Job postings are not like that: every role at one company shares a
-        boilerplate paragraph, so forty DIFFERENT jobs collapsed into one and a
-        top_k of 300 returned 31 rows. Same text is not the same job.
+        boilerplate paragraph, so forty DIFFERENT jobs collapsed into one.
+        Same text is not the same job.
         """
-        calls, _ = captured
         repository.search([0.1] * 384, user_id=1)
-        sql = calls[0][0]
+        sql = searched.statements[1][0]
         assert "chunk_key" not in sql
         assert "regexp_replace" not in sql
 
-    def test_overfetches_candidates_before_deduplicating(self, captured: Captured) -> None:
-        calls, _ = captured
+    def test_overfetches_candidates_before_deduplicating(self, searched: FakeCursor) -> None:
         repository.search([0.1] * 384, user_id=1, top_k=5)
-        params = calls[0][1]
-        assert repository.MIN_CANDIDATES in params
+        assert repository.MIN_CANDIDATES in searched.statements[1][1]
 
-    def test_parameter_order_puts_filters_inside_the_cte(self, captured: Captured) -> None:
+    def test_parameter_order_puts_filters_inside_the_cte(self, searched: FakeCursor) -> None:
         # The filters live in the CTE, so their parameters sit between the two
         # vector literals and the candidate limit. Wrong order produces a query
         # that runs and filters on the wrong thing.
-        calls, _ = captured
         repository.search([0.1] * 384, user_id=7, top_k=5, source="greenhouse")
-        params = calls[0][1]
+        params = searched.statements[1][1]
         assert params[2] == "greenhouse"
         assert params[3] == repository.MIN_CANDIDATES
         assert params[-1] == 5
 
-    def test_no_filter_means_no_where_clause_in_the_cte(self, captured: Captured) -> None:
-        calls, _ = captured
+    def test_no_filter_means_no_where_clause_in_the_cte(self, searched: FakeCursor) -> None:
         repository.search([0.1] * 384, user_id=1)
-        assert "j.source = %s" not in calls[0][0]
+        assert "j.source = %s" not in searched.statements[1][0]
 
-    def test_a_bad_embedding_never_reaches_sql(self, captured: Captured) -> None:
-        calls, _ = captured
+    def test_a_bad_embedding_never_reaches_sql(self, searched: FakeCursor) -> None:
         with pytest.raises(ValueError):
             repository.search([0.1, 0.2], user_id=1)
-        assert calls == []
+        assert searched.statements == []
 
 
 class TestListJobs:

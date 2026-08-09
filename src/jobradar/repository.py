@@ -21,6 +21,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import re
 from collections.abc import Iterable, Sequence
 from typing import Any
@@ -58,6 +59,21 @@ MIN_CANDIDATES = 100
 """Pull more rows out of the index than the caller asked for, because the two
 dedup rounds below collapse many of them. Asking the index for exactly top_k
 and then deduplicating returns fewer than top_k results."""
+
+EF_SEARCH = int(os.environ.get("HNSW_EF_SEARCH", "400"))
+"""How many candidates the HNSW index explores before answering.
+
+**pgvector defaults this to 40**, and that default silently caps the whole
+query: a LIMIT of 3000 still gets answered out of a pool of about forty, so
+asking for 300 results returned 35. Nothing errors, the rows that come back are
+genuinely the nearest of the ones examined, and the ones never examined are
+simply invisible.
+
+400 is measured, not guessed. Benchmarking the same index on the previous
+project moved recall from 0.18 at ef_search=40 to 0.80 at 400, for a latency
+cost small enough not to notice on a corpus this size. It has to be set per
+transaction, because it is a session GUC and the pool hands out a different
+connection each time."""
 
 
 # ---------------------------------------------------------------------------
@@ -388,6 +404,12 @@ def search(  # noqa: PLR0913 - the query plus the same filters as list_jobs
     something the planner cannot match, and the query silently degrades to a
     full scan that still returns correct results - the worst kind of
     regression, because nothing looks broken.
+
+    Runs `SET LOCAL hnsw.ef_search` in the same transaction as the query. It is
+    a session GUC and the pool hands out a different connection each time, so
+    setting it anywhere else would apply to some queries and not others -
+    which is worse than not setting it at all, because the results would be
+    inconsistent rather than uniformly poor.
     """
     vector = to_vector_literal(embedding)
     candidate_limit = max(top_k * CANDIDATE_OVERFETCH, MIN_CANDIDATES)
@@ -471,7 +493,10 @@ def search(  # noqa: PLR0913 - the query plus the same filters as list_jobs
         user_id,            # applications join
         top_k,              # the outer LIMIT
     )
-    return lakebase.run_query(sql, params)
+    with lakebase.get_connection() as conn, conn.cursor() as cur:
+        cur.execute("SET LOCAL hnsw.ef_search = %s", (EF_SEARCH,))
+        cur.execute(sql, params)
+        return [dict(row) for row in cur.fetchall()]
 
 
 def get_job(job_id: str, *, user_id: int) -> dict | None:
