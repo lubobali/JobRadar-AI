@@ -37,6 +37,19 @@
 .bubble strong { color: var(--text); font-weight: 620; }
 .bubble ul, .bubble ol { margin: 8px 0 12px; padding-left: 22px; }
 .bubble li { margin-bottom: 6px; }
+.bubble li::marker { color: var(--text-faint); }
+
+/* A blank line between items closes the list, so a ten-item answer arrives as
+   ten consecutive one-item lists. Their margins would then stack into a gap
+   twice the size of the one inside a list. */
+.bubble ol + ol, .bubble ul + ul { margin-top: -10px; }
+
+/* A continuation line: the salary, the location, the fit reason. Same indent
+   as the item text above it, no marker of its own. */
+.bubble li.cont {
+  list-style: none; margin-bottom: 3px;
+  color: var(--text-dim); font-size: 13.5px;
+}
 .bubble code {
   background: var(--surface-2); border: 1px solid var(--border);
   border-radius: 4px; padding: 1px 5px; font-size: 13px;
@@ -182,17 +195,26 @@ function markdown(src) {
     const heading = line.match(/^(#{1,6})\s+(.*)$/);
     if (heading) { closeList(); html += `<h3>${inline(heading[2])}</h3>`; continue; }
 
-    const ordered = line.match(/^\d+[.)]\s+(.*)$/);
+    // The number the agent wrote is carried through as `value`, rather than
+    // left to the browser's own counter. The agent separates list items with
+    // blank lines, a blank line closes the list, and every item therefore
+    // starts a fresh <ol> - which renders "1." ten times. Honouring the written
+    // number is correct whatever the list gets split into.
+    const ordered = line.match(/^(\d+)[.)]\s+(.*)$/);
     const bullet = line.match(/^[-*+]\s+(.*)$/);
     if (ordered || bullet) {
       const want = ordered ? "ol" : "ul";
       if (list !== want) { closeList(); html += `<${want}>`; list = want; }
-      html += `<li>${inline((ordered || bullet)[1])}</li>`;
+      html += ordered
+        ? `<li value="${ordered[1]}">${inline(ordered[2])}</li>`
+        : `<li>${inline(bullet[1])}</li>`;
       continue;
     }
 
-    // A continuation line inside a list item, not a new paragraph.
-    if (list) { html += `<li style="list-style:none;margin-left:-22px">${inline(line)}</li>`; continue; }
+    // A continuation line inside a list item - the salary, the location, the
+    // fit reason. It belongs under the item's TEXT, so it keeps the list's
+    // indent and only loses the marker.
+    if (list) { html += `<li class="cont">${inline(line)}</li>`; continue; }
     html += `<p>${inline(line)}</p>`;
   }
   closeList();
