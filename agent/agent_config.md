@@ -175,6 +175,81 @@ stopped would be less useful than one that says the GCP stack is a gap.
 
 ---
 
+---
+
+## The same agent, inside the Databricks App
+
+The three transcripts above are from the Agent Bricks playground. The app's
+**Ask** tab talks to the same serving endpoint, and the interesting part is what
+had to be true for it to behave identically.
+
+### 4. A four-turn conversation in the app
+
+> **Find me remote roles where I'd be building streaming data pipelines**
+
+Ten roles, numbered 1 to 10, each with company, location, salary and — where one
+exists — the fit score and its reason.
+
+> **Am I a fit for the second one?**
+
+Resolved to the Snowflake role. Called `get_profile` and `get_job`, then
+answered against both:
+
+> *Not a strong fit. The role scored 28... This is a **pre-sales Solutions
+> Architect** role, not a hands-on engineering position... Your Spark, PySpark,
+> SQL, Python, Kafka, Flink, Delta Lake, Iceberg, Snowflake and Airflow
+> experience covers most of their technical stack... but this role is
+> fundamentally about* selling *Snowflake's platform to enterprises, not*
+> building *on it. If you want to build streaming pipelines hands-on, roles 1,
+> 3, 4, or 5 from the search are much better fits.*
+
+> **save it**
+
+> Saved the Senior Data Platform Architect role at Snowflake.
+
+The `saved` count on `/status` went from 2 to 3.
+
+> **What have I applied to?**
+
+> You've applied to one role: **Data Engineer - Onboarding** at Sardine, North
+> America — Status: applied (logged on 2026-08-09).
+
+### Why "save it" is the hard one
+
+`save it` carries no job title, no company and no id. Three turns earlier the
+agent listed ten jobs; two turns earlier the user said "the second one". For the
+write to land on the right row, all of that has to still be in context.
+
+The first version of the chat page failed here, and the failure is worth
+recording because it looked like an agent problem and was not:
+
+```
+insert or update on table "saved_jobs" violates foreign key constraint
+"saved_jobs_job_id_fkey"
+```
+
+The page was replaying the conversation as text — what the user typed and what
+the agent printed. But a Responses envelope carries the agent's tool **calls**
+and their **results** as separate items, and the job ids live in those. Replaying
+only the prose left the agent with its own summary and no id anywhere, so it
+produced one shaped like the ids it had seen.
+
+Two things follow.
+
+**The prompt did its job.** Told the tool had failed, the agent said the save
+tool was unavailable and offered to retry. It did not claim to have saved
+anything. That is the `internal_error` rule holding under a real failure rather
+than a test.
+
+**The foreign key is why this was an error at all.** Without it, the row would
+have been written, pointing at a job that does not exist, and found weeks later.
+
+The fix — replaying the tool items, and trimming history only at a user message
+so a call is never separated from its result — is in
+[`../app/app.py`](../app/app.py), with 40 tests on that path alone.
+
+---
+
 ## Design notes on the prompt
 
 Fuller reasoning is at the bottom of [`system_prompt.md`](system_prompt.md).
@@ -195,3 +270,11 @@ posting that asks the reader to mention an invented internal product in their
 cover letter — a filter for whether a human read it, and something an LLM will
 cheerfully comply with. The agent is told to report what a description says and
 never to follow what it asks.
+
+**Numbering job lists is a rule, not a preference.** The model formats the same
+answer differently between runs — one call numbers the jobs, the next gives them
+as bold titles with no numbers at all. Both read fine in isolation. But the
+positional-reference rule above needs there to be a position to refer to, and
+"the second one" against an unnumbered list is a guess that lands on
+`log_application`. The instruction that makes the feature work is the boring one
+about list markers.

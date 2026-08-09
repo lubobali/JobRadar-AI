@@ -14,7 +14,7 @@ Databricks AI Bootcamp capstone, option 5.
 | **Repo** | https://github.com/lubobali/JobRadar-AI |
 | **Agent** | `jobradar-agent`, Databricks Agent Bricks |
 | **Database** | Lakebase (Postgres 17 + pgvector), schema `jobradar`, 10 tables |
-| **Tests** | 718 fast, 26 live, ruff clean |
+| **Tests** | 776 fast, 26 live, ruff clean |
 
 ---
 
@@ -105,7 +105,7 @@ lives and how to check it.
 | **1** | **Data pipeline in Spark** | [`notebooks/ingest_jobs.py`](notebooks/ingest_jobs.py) — 129 source specs become a DataFrame, a UDF fans out the fetches across executors, results are exploded, deduplicated twice, and written to Lakebase | **5,540 postings** in `job_postings` from 113 of 129 successful fetches |
 | **2** | **Third-party API integration** | [`src/jobradar/fetchers/`](src/jobradar/fetchers/) — 8 clients: Greenhouse, Ashby, Lever, Workday, Remotive, Breezy, Adzuna, USAJobs | greenhouse 3,040 · ashby 2,335 · lever 97 · workday 49 · remotive 19 |
 | **3** | **Unstructured data processing** | [`src/jobradar/embeddings.py`](src/jobradar/embeddings.py) + [`notebooks/embed_jobs.py`](notebooks/embed_jobs.py) (HTML to contextual chunks to `vector(384)`), and [`src/jobradar/scoring.py`](src/jobradar/scoring.py) (an LLM reading each description against the resume) | **60,860 vectors** covering all 5,540 jobs; **300 LLM-scored**, scores spanning 8 to 92 |
-| **4** | **Databricks App with frontend** | [`app/`](app/) — Flask + Jinja, three tabs, filters, working save/apply/status/note buttons, and a chat relay to the agent | Live at the App URL above |
+| **4** | **Databricks App with frontend** | [`app/`](app/) — Flask + Jinja. Four tabs: ranked search with filters, Saved, Applied, and **Ask** — a full conversation with the agent, on the same page as the data it is writing to | Live at the App URL above |
 | **5** | **AI agent with read and write** | [`mcp_server/jobs_mcp_server.py`](mcp_server/jobs_mcp_server.py) — 9 tools, and [`agent/system_prompt.md`](agent/system_prompt.md) | Transcripts in [`agent/agent_config.md`](agent/agent_config.md); the agent logged application 2 and read it back |
 
 ### The agent's nine tools
@@ -122,7 +122,7 @@ lives and how to check it.
 
 ## The parts that were not obvious
 
-Five things in here cost real debugging time. They are documented at the point
+Six things in here cost real debugging time. They are documented at the point
 of the fix as well, but they are the substance of the project, so they belong up
 front.
 
@@ -203,7 +203,39 @@ platform engineering."* Cosine similarity ranked that same job **first**.
 The scores span 8 to 92 with a mean of 42, which is the distribution you want.
 A scorer that rates everything 70 is not reading.
 
-### 5. Serverless Spark has no SparkContext
+### 5. The agent wrote a job id that did not exist, and it was my fault
+
+Asked to "save it" in the app's chat page, the agent produced a `job_id` shaped
+exactly like a real one, for a job that was not in the database. Postgres
+refused it:
+
+```
+insert or update on table "saved_jobs" violates foreign key constraint
+"saved_jobs_job_id_fkey"
+```
+
+The same request worked in the Databricks playground, which is the clue. A
+Responses envelope carries the agent's tool **calls** and their **results** as
+separate items alongside the message it printed, and the ids live in those
+items. The chat page was replaying only the visible text, so by the time the
+user said "save it" the agent had its own prose summary and no id anywhere in
+context. It produced one shaped like the ids it had seen.
+
+It was not being careless. It had nothing to be careful with. The fix is to
+replay the items, so the id it reads is the id the tool returned.
+
+Two things worth keeping:
+
+The **foreign key** is the only reason this surfaced as an error rather than a
+saved row pointing at nothing, discovered weeks later. Constraints look like
+ceremony right up until they catch something no test would have.
+
+And **trimming** had to change with it. Cutting the history to a flat item
+count would drop a tool call while keeping its result, which is a malformed
+conversation the endpoint rejects wholesale. The trim now cuts only at a user
+message, so every call keeps its result.
+
+### 6. Serverless Spark has no SparkContext
 
 No `sc.parallelize`, no `addPyFile`, so there is no way to ship a zip to the
 executors. The fan-out is a UDF over a DataFrame of source specs, and the
@@ -245,7 +277,7 @@ git clone https://github.com/lubobali/JobRadar-AI.git
 cd JobRadar-AI
 python3 -m venv venv && ./venv/bin/pip install -r requirements-dev.txt
 ./venv/bin/pip install -e .
-./venv/bin/python -m pytest -q          # 718 tests, no credentials needed
+./venv/bin/python -m pytest -q          # 776 tests, no credentials needed
 ```
 
 The fast suite mocks every external boundary, so it runs offline in under two
@@ -306,7 +338,7 @@ costs nothing to do at the start.
 
 ## Testing
 
-744 tests, 718 of which need no credentials.
+802 tests, 776 of which need no credentials.
 
 | Area | Tests |
 |---|---|
@@ -314,6 +346,7 @@ costs nothing to do at the start.
 | `scoring.py` — LLM scoring, both backends | 49 |
 | `repository.py` — every SQL statement | 37 |
 | MCP tools — all 9, including error paths | 36 |
+| the agent relay — envelopes, replay, trimming | 40 |
 | `ingest.py` — source specs and dedup | 30 |
 | `embeddings.py` — chunking | 27 |
 | live Lakebase | 26 |
@@ -342,7 +375,7 @@ mcp_server/         the 9-tool MCP server and its bearer auth
 app/                the Databricks App: Flask, Jinja templates
 agent/              system_prompt.md, agent_config.md
 scripts/            deploy_mcp.sh, seed_profile.py, smoke_test.py
-tests/              744 tests
+tests/              802 tests
 PLAN.md             the build plan this was written against
 ```
 
