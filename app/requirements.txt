@@ -1,4 +1,11 @@
 # Databricks App: the frontend. Requirement 4.
+#
+# The package itself is installed from git. The App deploys only the `app/`
+# subfolder, so `from jobradar import ...` has nothing to resolve against
+# unless it is a real dependency - which is what crashed the first deploy:
+# "App built successfully" followed immediately by "App crashed at startup".
+jobradar @ git+https://github.com/lubobali/JobRadar-AI.git@main
+
 flask>=3.0.3
 psycopg2-binary>=2.9.9
 sentence-transformers>=3.0.0
