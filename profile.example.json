@@ -1,0 +1,42 @@
+{
+  "_comment": [
+    "The shape of the profile JobRadar matches jobs against. Copy this to",
+    "profile.json, fill it in, and run scripts/seed_profile.py. profile.json is",
+    "gitignored - it carries a real name, a real email, and a career history,",
+    "and none of that belongs in a public repository.",
+    "",
+    "Order matters. matching.profile_query_text builds the search vector from",
+    "headline, then target_titles, then skills, then summary, and truncates from",
+    "the end - so the least specific field is the one that gets cut.",
+    "",
+    "resume_text is used last and only as filler. Resume prose ('collaborated",
+    "with stakeholders to deliver') sits close to every job description ever",
+    "written, which makes it noise in a similarity search rather than signal."
+  ],
+
+  "email": "you@example.com",
+
+  "headline": "Senior Data Engineer",
+
+  "summary": "Builds production data platforms and the systems on top of them.",
+
+  "target_titles": [
+    "Data Engineer",
+    "Senior Data Engineer",
+    "Analytics Engineer",
+    "Data Platform Engineer"
+  ],
+
+  "skills": [
+    "Python",
+    "SQL",
+    "Apache Spark",
+    "Airflow",
+    "dbt",
+    "PostgreSQL",
+    "AWS",
+    "Docker"
+  ],
+
+  "resume_text": "Paste the plain text of your resume here. It is embedded in chunks, so length is fine."
+}
