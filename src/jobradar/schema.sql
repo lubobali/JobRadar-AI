@@ -10,7 +10,16 @@
 -- mismatch surfaces immediately instead of as an insert failure halfway
 -- through a batch.
 
+-- pgvector lives in public and is already installed on this instance by
+-- SkyIndex-AI. IF NOT EXISTS makes this a no-op rather than a privilege error.
 CREATE EXTENSION IF NOT EXISTS vector;
+
+-- This account cannot CREATE DATABASE on the shared Lakebase instance, so
+-- JobRadar lives in its own SCHEMA in the same database. lakebase.py pins
+-- search_path on every connection; this line makes the file safe to run on its
+-- own too, through psql or a notebook.
+CREATE SCHEMA IF NOT EXISTS jobradar;
+SET search_path = jobradar, public;
 
 
 -- ===========================================================================

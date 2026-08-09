@@ -44,6 +44,17 @@ logger = logging.getLogger(__name__)
 _SCOPE = os.environ.get("LAKEBASE_SECRET_SCOPE", "lubo-jobradar")
 _KEY = os.environ.get("LAKEBASE_SECRET_KEY", "lakebase-url")
 
+# Lakebase here is a SHARED database. This account cannot CREATE DATABASE
+# ("permission denied to create database"), and the instance already holds
+# SkyIndex-AI's tables in public. So JobRadar gets its own SCHEMA instead, and
+# every connection is pinned to it.
+#
+# Pinned on the connection rather than by qualifying table names in SQL,
+# because a search_path set once is impossible to forget later - a single
+# unqualified CREATE TABLE in a migration would otherwise land in public and
+# collide with the other project.
+_SCHEMA = os.environ.get("LAKEBASE_SCHEMA", "jobradar")
+
 _POOL_MIN = int(os.environ.get("LAKEBASE_POOL_MIN", "1"))
 _POOL_MAX = int(os.environ.get("LAKEBASE_POOL_MAX", "8"))
 
@@ -151,9 +162,15 @@ def _get_pool() -> pg_pool.ThreadedConnectionPool:
         with _pool_lock:
             if _pool is None:  # re-check inside the lock
                 _pool = pg_pool.ThreadedConnectionPool(
-                    _POOL_MIN, _POOL_MAX, dsn=get_url(), cursor_factory=RealDictCursor
+                    _POOL_MIN,
+                    _POOL_MAX,
+                    dsn=get_url(),
+                    cursor_factory=RealDictCursor,
+                    # public stays on the path so the vector type, which is
+                    # installed there, still resolves.
+                    options=f"-c search_path={_SCHEMA},public",
                 )
-                logger.info("Lakebase connection pool ready (max=%s)", _POOL_MAX)
+                logger.info("Lakebase pool ready (max=%s, schema=%s)", _POOL_MAX, _SCHEMA)
     return _pool
 
 
