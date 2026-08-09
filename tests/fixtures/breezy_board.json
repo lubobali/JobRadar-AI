@@ -1,0 +1,54 @@
+[
+  {
+    "id": "abc123def456",
+    "friendly_id": "abc123def456-senior-data-engineer",
+    "name": "Senior Data Engineer",
+    "url": "https://the-asprey-group.breezy.hr/p/abc123def456-senior-data-engineer",
+    "published_date": "2026-07-25T14:00:00.000Z",
+    "type": {"id": "full-time", "name": "Full-Time"},
+    "location": {
+      "country": {"name": "United States", "id": "US"},
+      "state": {"id": "FL", "name": "Florida"},
+      "city": "Remote",
+      "primary": true,
+      "is_remote": true,
+      "name": "Remote, United States",
+      "id": "loc-remote-1"
+    },
+    "department": "Engineering",
+    "salary": "$140,000 – $170,000 / year",
+    "company": {
+      "name": "The Asprey Group",
+      "logo_url": null,
+      "friendly_id": "the-asprey-group",
+      "isMultipleLocationsEnabled": false
+    },
+    "locations": []
+  },
+  {
+    "id": "789ghi012jkl",
+    "friendly_id": "789ghi012jkl-biohacker-technician",
+    "name": "Biohacker Technician",
+    "url": "https://the-asprey-group.breezy.hr/p/789ghi012jkl-biohacker-technician",
+    "published_date": "2026-07-20T09:30:00.000Z",
+    "type": {"id": "full-time", "name": "Full-Time"},
+    "location": {
+      "country": {"name": "United States", "id": "US"},
+      "state": {"id": "CA", "name": "California"},
+      "city": "Los Angeles",
+      "primary": true,
+      "is_remote": false,
+      "name": "Los Angeles, CA",
+      "id": "loc-la-1"
+    },
+    "department": null,
+    "salary": null,
+    "company": {
+      "name": "Upgrade Labs",
+      "logo_url": null,
+      "friendly_id": "the-asprey-group",
+      "isMultipleLocationsEnabled": false
+    },
+    "locations": []
+  }
+]

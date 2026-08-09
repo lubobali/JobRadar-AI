@@ -1,0 +1,98 @@
+{
+  "0-legal-notice": "Remotive API attribution notice",
+  "job-count": 4,
+  "jobs": [
+    {
+      "id": 2090989,
+      "url": "https://remotive.com/remote-jobs/medical/assistant-account-payable-2090989",
+      "title": "Assistant Account Payable",
+      "company_name": "The Obesity Society",
+      "company_logo": "https://remotive.com/job/2090989/logo",
+      "category": "Medical",
+      "tags": [
+        "accounting",
+        "excel",
+        "data entry",
+        "outlook"
+      ],
+      "job_type": "full_time",
+      "publication_date": "2026-07-12T06:35:18",
+      "candidate_required_location": "USA",
+      "salary": "",
+      "description": "<p><strong><span class=\"OOyDTc\" style=\"line-height: 22px; color: #474747;\">This role may require you to be on site at times - please check with the employer first.</span></strong></p>\n<p>\u00a0</p>\n<p><span class=\"OOyDTc\" style=\"line-height: 22px; color: #474747;\">The Accounts Payable Assistant performs accounting and c</span><span class=\"ejCXj\" id=\"tsuid_iZYraqbqDLe40PEP-4O56Qg_3\" style=\"overflow: hid",
+      "company_logo_url": "https://remotive.com/job/2090989/logo"
+    },
+    {
+      "id": 2091068,
+      "url": "https://remotive.com/remote-jobs/marketing/head-of-marketing-communications-2091068",
+      "title": "Head of Marketing & Communications",
+      "company_name": "garden3d",
+      "company_logo": "https://remotive.com/job/2091068/logo",
+      "category": "Marketing",
+      "tags": [],
+      "job_type": "contract",
+      "publication_date": "2026-07-16T08:06:41",
+      "candidate_required_location": "Worldwide",
+      "salary": "$150k - $230k",
+      "description": "<p style=\"text-size-adjust: 100%; margin-bottom: 1rem; color: #212529;\"><span class=\"notion-enable-hover\" style=\"text-size-adjust: 100%;\">We are hiring a <span style=\"text-size-adjust: 100%; font-weight: bolder;\">Head of Marketing &amp; Communications</span> to tell the garden3d story across the internet, from wherever in the world you happen to be.</span></p>\n<p style=\"text-size-adjust: 100%; mar",
+      "company_logo_url": "https://remotive.com/job/2091068/logo"
+    },
+    {
+      "id": 2091056,
+      "url": "https://remotive.com/remote-jobs/software-development/staff-software-engineer-product-belo-horizonte-2091056",
+      "title": "Staff Software Engineer, Product (Belo Horizonte)",
+      "company_name": "LawnStarter",
+      "company_logo": "https://remotive.com/job/2091056/logo",
+      "category": "Software Development",
+      "tags": [
+        "AWS",
+        "backend",
+        "frontend",
+        "php",
+        "react",
+        "security",
+        "UI/UX",
+        "AI/ML",
+        "jira",
+        "react native",
+        "documentation",
+        "laravel",
+        "Typescript ",
+        "people management",
+        "prototyping",
+        "engineering management",
+        "marketplace",
+        "github",
+        "REST",
+        "datadog"
+      ],
+      "job_type": "full_time",
+      "publication_date": "2026-07-09T14:45:43",
+      "candidate_required_location": "Brazil",
+      "salary": "$80k - $100k",
+      "description": "<p><strong>This is a remote role for candidates located in Belo Horizonte, Brazil.\u00a0</strong></p>\n<p><strong>About LawnStarter</strong></p>\n<p>LawnStarter is the nation's leading on-demand marketplace for lawn care and outdoor services, with over $100M in annual bookings. We're expanding beyond lawn care to become the one-stop shop for all home services \u2014 operating across three brands (LawnStarter,"
+    },
+    {
+      "id": 1919265,
+      "url": "https://remotive.com/remote-jobs/software-development/senior-independent-software-developer-1919265",
+      "title": "Senior Independent Software Developer",
+      "company_name": "A.Team",
+      "company_logo": "https://remotive.com/job/1919265/logo",
+      "category": "Software Development",
+      "tags": [
+        "go",
+        "wordpress",
+        "chat",
+        "apple",
+        "testing",
+        "catalyst"
+      ],
+      "job_type": "contract",
+      "publication_date": "2026-07-16T10:10:51",
+      "candidate_required_location": "Americas, Europe, Israel",
+      "salary": "$90 - $150 /hour",
+      "description": "<p style=\"text-size-adjust: 100%; overflow-wrap: break-word;\"><em>You must be located in the Americas, Europe, or Israel to apply.<br></em><br><br><a href=\"https://build.a.team/remotivereferral\" rel=\"nofollow\">A\u00b7Team</a> is a VC-backed, stealth, application-only home on the internet for senior independent software builders to team up with hand-picked, high-growth companies on their next big thing.",
+      "company_logo_url": "https://remotive.com/job/1919265/logo"
+    }
+  ]
+}

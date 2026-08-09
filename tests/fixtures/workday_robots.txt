@@ -1,0 +1,11 @@
+Sitemap: https://gdit.wd5.myworkdayjobs.com/External_Career_Site/siteMap.xml
+
+User-agent: *
+Allow: /External_Career_Site/
+Disallow: /Incumbent_Career_Site/
+Disallow: /GDIT_EarlyTalent/
+Disallow: /GDIT_Empl_Ref/
+Disallow: /DirectHire_Career_Site/
+Disallow: /SkillBridge/
+Disallow: /ISSJ_III_Incumbent/
+Disallow: /refreshFacet/

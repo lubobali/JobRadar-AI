@@ -6,3 +6,9 @@
 pytest>=8.2.0
 respx>=0.21.1        # httpx mocking, used by every ported fetcher test
 ruff>=0.6.0
+
+# TEMPORARY. scoring.py still carries its Bedrock provider, which imports
+# boto3. fit.py imports ScoredJob from scoring.py, so scoring had to come
+# across in Phase 1 rather than Phase 4 as the plan first said. Phase 4 swaps
+# the provider to Databricks claude-haiku-4-5 and this line goes away.
+boto3>=1.34.0

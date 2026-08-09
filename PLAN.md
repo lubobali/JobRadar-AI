@@ -55,7 +55,7 @@ Every file, where it comes from, and which phase needs it.
 | `src/jobradar/fit.py` | job-streamer | `src/aws_job_streamer/fit.py` | 1 | none |
 | `src/jobradar/location_rank.py` | job-streamer | `src/aws_job_streamer/location_rank.py` | 1 | none |
 | `src/jobradar/watchlist.py` | job-streamer | `src/aws_job_streamer/watchlist.py` | 1 | none |
-| `src/jobradar/scoring.py` | job-streamer | `src/aws_job_streamer/scoring.py` | 4 | **swap provider**: Bedrock/OpenRouter → Databricks `claude-haiku-4-5` |
+| `src/jobradar/scoring.py` | job-streamer | `src/aws_job_streamer/scoring.py` | **1** (copied), 4 (swap) | `fit.py` imports `ScoredJob` from it, so it cannot wait for Phase 4. Copied intact in Phase 1; Phase 4 **swaps the provider**: Bedrock/OpenRouter → Databricks `claude-haiku-4-5`, which also drops the temporary boto3 dev dependency |
 | `tests/fetchers/*`, `tests/fixtures/*` | job-streamer | `tests/` | 1 | none |
 | `src/jobradar/lakebase.py` | SkyIndex-AI | `lakebase.py` | 2 | scope/key names |
 | `src/jobradar/embeddings.py` | SkyIndex-AI | `embeddings.py` | 4 | none |
@@ -245,7 +245,12 @@ Nothing new is written. Everything green before moving on.
       and User-Agent. Two HTTP stacks and two mocking libraries in one repo
       would buy nothing.
 - [ ] 1.4 Rename the package `aws_job_streamer` → `jobradar` throughout
-- [ ] 1.5 Full suite green (should be ~400 of the original 498)
+- [x] 1.5 Full suite green — **534 passing**, ruff clean
+
+**Found during 1.5:** `fit.py` imports `ScoredJob` from `scoring.py`, so
+scoring is a Phase 1 dependency and not a Phase 4 one. Copied intact, boto3
+added to requirements-dev.txt as a temporary dev-only dependency. Phase 4's
+provider swap removes it.
 
 ### Phase 2 — Schema and storage (45 min)
 

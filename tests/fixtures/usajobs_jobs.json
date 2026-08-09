@@ -1,0 +1,82 @@
+{
+  "SearchResult": {
+    "SearchResultCount": 3,
+    "SearchResultItems": [
+      {
+        "MatchedObjectId": "PHMSA.PSRG-2026-0018",
+        "MatchedObjectDescriptor": {
+          "PositionID": "PHMSA.PSRG-2026-0018",
+          "PositionTitle": "General Engineer (Inspector) (Control Room Management) - DIRECT HIRE",
+          "OrganizationName": "Pipeline and Hazardous Materials Safety Administration",
+          "PositionURI": "https://www.usajobs.gov:443/job/875440800",
+          "PositionLocationDisplay": "Anywhere in the U.S. (remote job)",
+          "PositionRemuneration": [
+            {
+              "MinimumRange": "106437",
+              "MaximumRange": "158322",
+              "RateIntervalCode": "PA",
+              "Description": "Per Year"
+            }
+          ],
+          "PublicationStartDate": "2026-07-06T00:00:00.0000",
+          "UserArea": {
+            "Details": {
+              "JobSummary": "The incumbent of this position serves as a General Engineer (Inspector) within anywhere in the US and reports to a Regional Office of the Office of Pipeline Safety in support of the national Control Room Management program.",
+              "RemoteIndicator": true
+            }
+          }
+        }
+      },
+      {
+        "MatchedObjectId": "FSA-2026-0118",
+        "MatchedObjectDescriptor": {
+          "PositionID": "FSA-2026-0118",
+          "PositionTitle": "IT Specialist (APPSW) \"Software Engineer\", GS-2210-15 FPL GS-15 (Direct Hire) (Open Continuous)",
+          "OrganizationName": "Federal Student Aid",
+          "PositionURI": "https://www.usajobs.gov:443/job/875046600",
+          "PositionLocationDisplay": "Multiple Locations",
+          "PositionRemuneration": [
+            {
+              "MinimumRange": "147945",
+              "MaximumRange": "197200",
+              "RateIntervalCode": "PA",
+              "Description": "Per Year"
+            }
+          ],
+          "PublicationStartDate": "2026-07-01T00:00:00.0000",
+          "UserArea": {
+            "Details": {
+              "JobSummary": "This position is in the U.S. Department of Education (ED), Federal Student Aid (FSA), Technology Directorate (TD). The Technology Directorate provides information technology services for all FSA systems, promoting the effective and secure use of technology to achieve FSA's strategic objectives throu",
+              "RemoteIndicator": false
+            }
+          }
+        }
+      },
+      {
+        "MatchedObjectId": "AAC-FAA-26-PUB NOT-96468",
+        "MatchedObjectDescriptor": {
+          "PositionID": "AAC-FAA-26-PUB NOT-96468",
+          "PositionTitle": "Public Notice for General Engineer (Direct Hire)",
+          "OrganizationName": "Federal Aviation Administration",
+          "PositionURI": "https://www.usajobs.gov:443/job/852270300",
+          "PositionLocationDisplay": "May be filled in various FAA duty locations",
+          "PositionRemuneration": [
+            {
+              "MinimumRange": "52998",
+              "MaximumRange": "172257",
+              "RateIntervalCode": "PA",
+              "Description": "Per Year"
+            }
+          ],
+          "PublicationStartDate": "2025-12-12T00:00:00.0000",
+          "UserArea": {
+            "Details": {
+              "JobSummary": "Direct hiring authority for the 0801 series is being used to fill this position. Public Notices serve as a resume repository, and positions may or may not be filled from this announcement.",
+              "RemoteIndicator": false
+            }
+          }
+        }
+      }
+    ]
+  }
+}

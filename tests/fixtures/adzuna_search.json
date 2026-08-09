@@ -1,0 +1,139 @@
+{
+  "count": 29378,
+  "results": [
+    {
+      "latitude": 38.886306,
+      "category": {
+        "tag": "it-jobs",
+        "label": "IT Jobs",
+        "__CLASS__": "Adzuna::API::Response::Category"
+      },
+      "title": "Senior Software Developer",
+      "longitude": -77.097739,
+      "company": {
+        "__CLASS__": "Adzuna::API::Response::Company",
+        "display_name": "SSG"
+      },
+      "__CLASS__": "Adzuna::API::Response::Job",
+      "description": "Syms Strategic Group (SSG) is seeking a talented Senior Software Developer Location: Remote Department: Veterans Affairs (VA) Type: Full Time Min. Experience: Experienced Security Clearance Level: Public Trust Salary Range: $85,389 - $116,975 Military Veterans are highly encouraged to apply! Essential Duties and Responsibilities Build, support, and migrate a cloud-based Web Dashboard application that processes healthcare Electronic Data Interchange (EDI) transactions Design, build, and maintain…",
+      "adref": "eyJhbGciOiJIUzI1NiJ9.eyJzIjoiVkRzQmExNkE4UkdETU5Gbzlxa1hzdyIsImkiOiI1ODAxMTQ3MDEzIn0.K7GhxHYHSn2YnC1vjENrZA-cKlcjhgjuCwyfB_pthUM",
+      "id": "5801147013",
+      "contract_time": "full_time",
+      "salary_min": 85389,
+      "salary_max": 116975,
+      "salary_is_predicted": "0",
+      "redirect_url": "https://www.adzuna.com/details/5801147013?utm_medium=api&utm_source=d6920beb",
+      "created": "2026-07-15T08:33:45Z",
+      "location": {
+        "__CLASS__": "Adzuna::API::Response::Location",
+        "display_name": "State Farm, Arlington County",
+        "area": [
+          "US",
+          "Virginia",
+          "Arlington County",
+          "State Farm"
+        ]
+      }
+    },
+    {
+      "id": "5801265421",
+      "redirect_url": "https://www.adzuna.com/details/5801265421?utm_medium=api&utm_source=d6920beb",
+      "created": "2026-07-15T10:13:04Z",
+      "location": {
+        "area": [
+          "US",
+          "Massachusetts",
+          "Suffolk County",
+          "Boston"
+        ],
+        "__CLASS__": "Adzuna::API::Response::Location",
+        "display_name": "Boston, Suffolk County"
+      },
+      "__CLASS__": "Adzuna::API::Response::Job",
+      "adref": "eyJhbGciOiJIUzI1NiJ9.eyJzIjoiVkRzQmExNkE4UkdETU5Gbzlxa1hzdyIsImkiOiI1ODAxMjY1NDIxIn0.xGE5NYEosO5sLjB5d8Az5Y7UW8ysNbVCgqiQl0KNXog",
+      "description": "By joining CHIA, you will help translate data into insight—and insight into action. At the Center for Health Information and Analysis (CHIA), we provide the factual foundation for data-driven health care policy and decision-making in Massachusetts. As an independent state agency, CHIA is trusted by policymakers, health care leaders, and researchers to produce objective, transparent analysis that improves the quality, affordability, and equity of care. We serve as stewards of Massachusetts healt…",
+      "salary_is_predicted": "1",
+      "salary_max": 119025.7,
+      "salary_min": 119025.7,
+      "latitude": 42.354856,
+      "category": {
+        "__CLASS__": "Adzuna::API::Response::Category",
+        "tag": "it-jobs",
+        "label": "IT Jobs"
+      },
+      "title": "Manager of ETL Development",
+      "company": {
+        "display_name": "Center For Health Information And Analysis",
+        "__CLASS__": "Adzuna::API::Response::Company"
+      },
+      "longitude": -71.066119
+    },
+    {
+      "__CLASS__": "Adzuna::API::Response::Job",
+      "adref": "eyJhbGciOiJIUzI1NiJ9.eyJzIjoiVkRzQmExNkE4UkdETU5Gbzlxa1hzdyIsImkiOiI1ODAxMjY0MjY4In0.9PULwkuuCEO_kkvxs5KTjfCJsVhBFVDLnNJJacS7RI8",
+      "description": "Job: 3042215 Job Description: Data Engineer Location: Eagan, Minnesota (Remote) Role Overview We are seeking a mid-to-senior level Data Engineer to design, build, test, and support data integrations. This role involves implementing solutions for integrating with third-party vendors and establishing new data patterns. The position requires a professional who can contribute to solutions independently while collaborating with technical leads and solution architects. Key Responsibilities Lead the d…",
+      "salary_is_predicted": "1",
+      "id": "5801264268",
+      "redirect_url": "https://www.adzuna.com/land/ad/5801264268?se=VDsBa16A8RGDMNFo9qkXsw&utm_medium=api&utm_source=d6920beb&v=F22BBB91F40AE5D80B64DB6DF0067630E1774355",
+      "created": "2026-07-15T09:48:28Z",
+      "location": {
+        "area": [
+          "US",
+          "Minnesota",
+          "Dakota County",
+          "Eagan"
+        ],
+        "__CLASS__": "Adzuna::API::Response::Location",
+        "display_name": "Eagan, Dakota County"
+      },
+      "latitude": 44.872736,
+      "category": {
+        "__CLASS__": "Adzuna::API::Response::Category",
+        "label": "IT Jobs",
+        "tag": "it-jobs"
+      },
+      "title": "Google Cloud Platform Data Engineer",
+      "company": {
+        "display_name": "Apex Systems",
+        "__CLASS__": "Adzuna::API::Response::Company"
+      },
+      "longitude": -93.147851,
+      "salary_min": 83804.48,
+      "salary_max": 83804.48
+    },
+    {
+      "__CLASS__": "Adzuna::API::Response::Job",
+      "salary_is_predicted": "1",
+      "description": "Distinguished Technologist, Distributed Systems & Agentic Query Optimization This role has been designed as 'Hybrid' with an expectation that you will work on average 2 days per week from an HPE office. Hewlett Packard Enterprise is the global edge-to-cloud company advancing the way people live and work. We help companies connect, protect, analyze, and act on their data and applications wherever they live, from edge to cloud, so they can turn insights into outcomes at the speed required to thri…",
+      "adref": "eyJhbGciOiJIUzI1NiJ9.eyJpIjoiNTgwMTE3MTgxNiIsInMiOiJWRHNCYTE2QThSR0RNTkZvOXFrWHN3In0.gSXl3n5S3pTpDCZZfdzZvO5uN8WaWfiYhZF3xtdh6ag",
+      "id": "5801171816",
+      "location": {
+        "display_name": "Trammells, Harris County",
+        "__CLASS__": "Adzuna::API::Response::Location",
+        "area": [
+          "US",
+          "Texas",
+          "Harris County",
+          "Trammells"
+        ]
+      },
+      "redirect_url": "https://www.adzuna.com/details/5801171816?utm_medium=api&utm_source=d6920beb",
+      "created": "2026-07-15T08:46:03Z",
+      "category": {
+        "label": "IT Jobs",
+        "tag": "it-jobs",
+        "__CLASS__": "Adzuna::API::Response::Category"
+      },
+      "latitude": 29.6403,
+      "longitude": -95.4359,
+      "company": {
+        "display_name": "Hewlett Packard Enterprise",
+        "__CLASS__": "Adzuna::API::Response::Company"
+      },
+      "title": "Distinguished Technologist, Distributed Systems & Agentic Query Optimization",
+      "salary_max": 171527.66,
+      "salary_min": 171527.66
+    }
+  ],
+  "__CLASS__": "Adzuna::API::Response::JobSearchResults"
+}
