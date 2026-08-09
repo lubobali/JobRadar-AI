@@ -20,7 +20,7 @@
 #
 # Bumping the version in pyproject.toml does NOT fix this. Nothing inside the
 # package can, because pip is not consulted. Only this line changing does.
-jobradar @ git+https://github.com/lubobali/JobRadar-AI.git@v0.4.0
+jobradar @ git+https://github.com/lubobali/JobRadar-AI.git@v0.5.0
 
 flask>=3.0.3
 psycopg2-binary>=2.9.9
