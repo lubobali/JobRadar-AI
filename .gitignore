@@ -1,0 +1,18 @@
+.env
+*.env
+!.env.example
+__pycache__/
+*.pyc
+.venv/
+venv/
+.idea/
+.vscode/
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+*.zip
+
+# The real resume and profile never ship. profile.example.json does.
+profile.json
+resume*.txt
+resume*.pdf
