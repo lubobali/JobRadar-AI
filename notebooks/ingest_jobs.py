@@ -238,16 +238,28 @@ def fetch(kind, slug, company, query, where, tenant, site, host):
     return {"rows": [ingest.to_row(job) for job in jobs], "error": error}
 
 
-fetched = specs_df.withColumn("result", fetch(*[F.col(f) for f in SPEC_FIELDS])).cache()
+fetched = specs_df.withColumn("result", fetch(*[F.col(f) for f in SPEC_FIELDS]))
 
-errors = [
-    row["error"]
-    for row in fetched.select(F.col("result.error").alias("error"))
-    .filter(F.col("error").isNotNull())
-    .collect()
-]
+# Collected in ONE pass, deliberately.
+#
+# `.cache()` is PERSIST TABLE underneath, and serverless refuses it:
+#
+#   [NOT_SUPPORTED_WITH_SERVERLESS] PERSIST TABLE is not supported on
+#   serverless compute
+#
+# Without a cache, `fetched` is a lazy plan whose source is 129 HTTP calls, and
+# every action re-runs all of them. There are four actions below - the error
+# list, two counts and the write - so an uncached version would hammer every job
+# board four times and could get four different answers.
+#
+# So the fan-out is materialised exactly once, here. The HTTP work stays
+# distributed across the executors; only the assembled rows come back.
+collected = fetched.select("result").collect()
 
-raw = fetched.select(F.explode("result.rows").alias("job")).select("job.*").cache()
+errors = [row["result"]["error"] for row in collected if row["result"]["error"]]
+job_rows = [job for row in collected for job in row["result"]["rows"]]
+
+raw = spark.createDataFrame(job_rows, schema=JOB_SCHEMA)
 
 print(f"fetched : {raw.count()} postings")
 print(f"failed  : {len(errors)} sources")
