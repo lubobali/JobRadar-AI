@@ -27,6 +27,7 @@ from jobradar.models import Job
 from jobradar.scoring import (
     BEDROCK_DEFAULT_MODEL,
     BedrockScorer,
+    DatabricksScorer,
     ScoredJob,
     Scorer,
     ScoringError,
@@ -386,14 +387,30 @@ class TestBedrockScorer:
 
 
 class TestBuildScorer:
-    def test_defaults_to_openrouter(self) -> None:
-        scorer = build_scorer(PROFILE, api_key="k")
+    def test_defaults_to_databricks(self) -> None:
+        # Changed from openrouter when this moved off AWS. Databricks needs no
+        # API key at all - credentials come from the ambient identity, the same
+        # way the notebooks reach Lakebase.
+        assert isinstance(build_scorer(PROFILE), DatabricksScorer)
+
+    def test_openrouter_is_still_available_when_asked_for(self) -> None:
+        # All three backends share build_prompt, parse_response and
+        # _to_scored_job, so a provider outage stays a config change rather
+        # than a rewrite - which is only true if the others keep working.
+        scorer = build_scorer(PROFILE, api_key="k", backend="openrouter")
 
         assert isinstance(scorer, Scorer)
 
     def test_openrouter_without_a_key_raises(self) -> None:
         with pytest.raises(ScoringError):
-            build_scorer(PROFILE)
+            build_scorer(PROFILE, backend="openrouter")
+
+    def test_bedrock_is_still_available_when_asked_for(self) -> None:
+        assert isinstance(build_scorer(PROFILE, backend="bedrock"), BedrockScorer)
+
+    def test_an_unknown_backend_names_the_real_ones(self) -> None:
+        with pytest.raises(ScoringError, match="databricks"):
+            build_scorer(PROFILE, backend="ollama")
 
     def test_bedrock_backend_returns_a_bedrock_scorer(self) -> None:
         scorer = build_scorer(PROFILE, backend="bedrock")

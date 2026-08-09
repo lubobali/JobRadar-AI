@@ -1,0 +1,164 @@
+{
+  "_comment": [
+    "SANITIZED example profile. Copy to profile.json (gitignored) and put your real details there.",
+    "No phone, no email, no street address \u2014 this file is public.",
+    "",
+    "location_preference is a RANKING signal, never a filter. The pipeline surfaces every US job",
+    "and uses these tiers to decide what floats to the top. Filtering on them would hide the jobs",
+    "you would actually accept."
+  ],
+  "headline": "Senior Data & AI Platform Engineer",
+  "years_engineering": 3,
+  "work_authorization": "US Citizen",
+  "current_base": "Chicago, IL",
+  "location_preference": {
+    "_comment": "Lower tier = better. The pipeline ranks by this; it never drops on it.",
+    "tiers": [
+      {
+        "tier": 1,
+        "name": "remote_us",
+        "why": "The goal. Fully remote, US-based."
+      },
+      {
+        "tier": 2,
+        "name": "target_metro_hybrid",
+        "why": "Would relocate immediately. Hybrid in the target metro.",
+        "metros": [
+          "Sarasota",
+          "Tampa Bay"
+        ]
+      },
+      {
+        "tier": 3,
+        "name": "target_metro_onsite",
+        "why": "Would relocate immediately. On-site in the target county.",
+        "counties": [
+          "Sarasota County"
+        ]
+      },
+      {
+        "tier": 4,
+        "name": "hybrid_rare_travel",
+        "why": "Anywhere in the US, if the office is needed no more than ~twice a month.",
+        "max_office_days_per_month": 2
+      },
+      {
+        "tier": 5,
+        "name": "current_base_hybrid",
+        "why": "Acceptable as a temporary bridge (6-12 months) to gain experience, then relocate.",
+        "metros": [
+          "Chicago"
+        ]
+      }
+    ],
+    "target_metro": {
+      "_comment": "Where you want to end up. Cities are matched against the job's location text.",
+      "goal": "Venice, FL",
+      "counties": [
+        "Sarasota County"
+      ],
+      "cities": [
+        "Venice",
+        "Sarasota",
+        "North Port",
+        "Osprey",
+        "Nokomis",
+        "Laurel",
+        "Englewood",
+        "Siesta Key",
+        "Tampa",
+        "St. Petersburg",
+        "Saint Petersburg",
+        "Clearwater",
+        "Bradenton",
+        "Palmetto",
+        "Brandon",
+        "Riverview",
+        "Largo",
+        "Lakeland"
+      ]
+    },
+    "current_base_cities": [
+      "Chicago",
+      "Evanston",
+      "Oak Park",
+      "Naperville",
+      "Schaumburg"
+    ]
+  },
+  "titles_of_interest": [
+    "Data Engineer",
+    "AI Engineer",
+    "Data Platform Engineer",
+    "Machine Learning Engineer",
+    "Analytics Engineer"
+  ],
+  "skills": {
+    "_comment": "have = shipped, and safe to claim. building = in progress; surface the job, but say so honestly.",
+    "have": [
+      "Python",
+      "SQL",
+      "Spark",
+      "PySpark",
+      "Databricks",
+      "Delta Lake",
+      "Iceberg",
+      "Airflow",
+      "dbt",
+      "Snowflake",
+      "Kafka",
+      "Flink",
+      "FastAPI",
+      "PostgreSQL",
+      "LLM",
+      "RAG",
+      "agents",
+      "TypeScript",
+      "Docker",
+      "CI/CD"
+    ],
+    "building": [
+      "AWS",
+      "Lambda",
+      "Terraform",
+      "Bedrock",
+      "DynamoDB",
+      "Step Functions",
+      "EventBridge",
+      "SES",
+      "SNS",
+      "API Gateway",
+      "CloudWatch"
+    ]
+  },
+  "strengths": [
+    "Full-stack development in Python and TypeScript, owning features end to end (build, deploy, iterate) — backend and data engineering are the deepest",
+    "Document extraction: builds systems that read messy real-world documents (PDF, Word, scanned) and pull the data out into clean, usable, structured form",
+    "Production RAG and agent systems (RAG/FAISS, MCP, LLM-in-the-loop), AWS serverless, Python and SQL daily",
+    "Technical mentoring: built a backend solo and taught engineers to write tested code, set up their environment, and ship",
+    "Agentic AI-paired engineering: builds end to end with Claude Code as a daily workflow accelerator (LuBot.ai)"
+  ],
+  "skip_flags": {
+    "_comment": "Hard disqualifiers. Encoded in Phase 2 scoring; never guessed at by the prefilter.",
+    "azure_mandatory": "Azure required (not just nice-to-have)",
+    "years_required_above": 8,
+    "wrong_discipline": "Not a data/AI/software engineering role"
+  },
+  "salary": {
+    "_comment": "NO salary filter, deliberately. Salary is shown as information; it never excludes a job. An estimated salary is never treated as fact.",
+    "filter": false
+  },
+  "open_to_gov_defense": true,
+  "domains": {
+    "_comment": "Core = his home turf, weigh strongly. Secondary = a real plus when it appears (rare), never a filter and never inflate a weak skills match on its own.",
+    "core": [
+      "data engineering",
+      "AI/ML platforms",
+      "fintech / payments / ISO",
+      "multi-tenant SaaS"
+    ],
+    "secondary": [
+      "sports / sports-betting / prediction markets (he holds an MS in Sports Management and a BS in Basketball Coaching, and is happy to do backend engineering in this space)"
+    ]
+  }
+}

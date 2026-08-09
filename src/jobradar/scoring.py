@@ -34,6 +34,12 @@ from botocore.exceptions import BotoCoreError, ClientError
 from jobradar.models import Job
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+DATABRICKS_GATEWAY_PATH = "/ai-gateway/mlflow/v1/chat/completions"
+DATABRICKS_DEFAULT_MODEL = os.environ.get("SCORER_MODEL", "system.ai.claude-haiku-4-5")
+"""Addressed by Unity Catalog name through the AI Gateway. Haiku for the same
+reason it was chosen on OpenRouter: a measured A/B put Sonnet at roughly triple
+the cost for the same email/no-email decision."""
+
 DEFAULT_MODEL = "anthropic/claude-haiku-4.5"
 """Haiku, not Sonnet — chosen 2026-07-18 on cost + a live A/B. Measured ~$0.012/job on Sonnet put
 steady-state at ~$18/mo, over the $10 budget; Haiku is ~1/3 that (~$6/mo). On a 9-job validation
@@ -413,6 +419,82 @@ class BedrockScorer:
         return scored
 
 
+@dataclass(frozen=True, slots=True)
+class DatabricksScorer:
+    """Scores jobs through a Databricks Foundation Model serving endpoint.
+
+    The provider this project actually runs on. Same boundary as `Scorer` and
+    `BedrockScorer`: it reuses `build_prompt`, `parse_response` and
+    `_to_scored_job`, so the calibrated prompt and the parsing are identical
+    across every backend and only the transport differs. That is the point of
+    keeping three - a provider outage is a config change, not a rewrite.
+
+    No API key. Credentials come from the ambient Databricks identity, the same
+    way the notebooks reach Lakebase, so there is one fewer secret to manage and
+    nothing to rotate.
+    """
+
+    profile: dict[str, Any]
+    model: str = DATABRICKS_DEFAULT_MODEL
+    timeout: float = 90.0
+
+    def _credentials(self) -> tuple[str, str]:
+        from databricks.sdk import WorkspaceClient  # noqa: PLC0415
+
+        client = WorkspaceClient()
+        headers = client.config.authenticate() or {}
+        token = (headers.get("Authorization") or "").removeprefix("Bearer ").strip()
+        host = (client.config.host or "").rstrip("/")
+        if not host or not token:
+            raise ScoringError("no Databricks credentials available for scoring")
+        return host, token
+
+    def score(self, job: Job) -> ScoredJob:
+        """Score one job. Raises ScoringError rather than inventing a number."""
+        host, token = self._credentials()
+        try:
+            response = httpx.post(
+                f"{host}{DATABRICKS_GATEWAY_PATH}",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": self.model,
+                    "max_tokens": 400,
+                    # A screening judgement, not prose. Low temperature because
+                    # the same posting scored twice should get the same number;
+                    # a score that moves on re-runs is not a score.
+                    "temperature": 0.0,
+                    "messages": [
+                        {"role": "user", "content": build_prompt(job, profile=self.profile)}
+                    ],
+                },
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except httpx.HTTPStatusError as exc:
+            raise ScoringError(
+                f"scoring {job.title!r} returned HTTP {exc.response.status_code}"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise ScoringError(f"scoring {job.title!r} is unreachable: {exc}") from exc
+        except ValueError as exc:
+            raise ScoringError(f"scoring {job.title!r} returned non-JSON") from exc
+
+        try:
+            content = payload["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise ScoringError(f"unexpected reply shape: {str(payload)[:120]}") from exc
+
+        return _to_scored_job(job, parse_response(content))
+
+    def score_many(self, jobs: Sequence[Job]) -> list[ScoredJob]:
+        """Score a batch, skipping any job that fails (see `_score_each`)."""
+        return _score_each(self, jobs)
+
+
 def build_scorer(
     profile: dict[str, Any],
     *,
@@ -423,15 +505,23 @@ def build_scorer(
 ) -> _ScoresOne:
     """Pick a scorer backend from config — OpenRouter today, Bedrock when quota lands.
 
-    `backend` defaults to `$SCORER_BACKEND` then "openrouter", so nothing changes until it is set
-    to "bedrock" explicitly. An empty `model` means "use that backend's default", so the same
-    `SCORER_MODEL` env can stay blank across a provider switch.
+    `backend` defaults to `$SCORER_BACKEND` then "databricks", which is what this project runs on.
+    OpenRouter and Bedrock are kept working because a provider outage should be a config change
+    rather than a rewrite - and because the calibrated prompt is shared, all three score the same.
+
+    An empty `model` means "use that backend's default", so the same `SCORER_MODEL` env can stay
+    blank across a provider switch.
     """
-    backend = (backend or os.environ.get("SCORER_BACKEND") or "openrouter").lower()
+    backend = (backend or os.environ.get("SCORER_BACKEND") or "databricks").lower()
+    if backend == "databricks":
+        return DatabricksScorer(profile=profile, model=model or DATABRICKS_DEFAULT_MODEL)
     if backend == "bedrock":
         return BedrockScorer(profile=profile, model=model or BEDROCK_DEFAULT_MODEL, region=region)
     if backend != "openrouter":
-        raise ScoringError(f"unknown SCORER_BACKEND {backend!r} (expected openrouter | bedrock)")
+        raise ScoringError(
+            f"unknown SCORER_BACKEND {backend!r} "
+            "(expected databricks | openrouter | bedrock)"
+        )
     if not api_key:
         raise ScoringError("OpenRouter backend needs an api_key (set OPENROUTER_API_KEY)")
     return Scorer(api_key=api_key, profile=profile, model=model or DEFAULT_MODEL)
