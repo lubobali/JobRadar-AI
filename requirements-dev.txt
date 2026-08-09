@@ -1,0 +1,8 @@
+# Test-only. Not installed by either deployed app.
+-r requirements.txt
+-r app/requirements.txt
+-r mcp_server/requirements.txt
+
+pytest>=8.2.0
+respx>=0.21.1        # httpx mocking, used by every ported fetcher test
+ruff>=0.6.0

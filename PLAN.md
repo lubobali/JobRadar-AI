@@ -66,7 +66,6 @@ Every file, where it comes from, and which phase needs it.
 | `mcp_server/jobs_mcp_server.py` | SkyCast-AI | `weather_mcp_server.py` | 5 | job tools, incl. writes |
 | `mcp_server/bearer_auth.py` | SkyCast-AI | `bearer_auth.py` | 5 | none |
 | `mcp_server/validation.py` | SkyCast-AI | `validation.py` | 5 | job-shaped arguments |
-| `src/jobradar/http_client.py` | SkyCast-AI | `http_client.py` | 1 | none |
 | `agent/system_prompt.md` | SkyCast-AI | `agent/system_prompt.md` | 5 | rewritten, same patterns |
 | `scripts/smoke_test.py` | SkyCast-AI | `scripts/smoke_test.py` | 5 | job tool cases |
 
@@ -240,7 +239,11 @@ Nothing new is written. Everything green before moving on.
 - [ ] 1.2 **From `aws-job-streamer`**, via `scp` from EC2: the 8 fetchers +
       `base.py`, `models.py`, `html_text.py`, `prefilter.py`, `fit.py`,
       `location_rank.py`, `watchlist.py` — and their tests and fixtures
-- [ ] 1.3 **From SkyCast-AI**: `http_client.py`
+- [ ] 1.3 **No HTTP layer is ported from SkyIndex-AI or SkyCast-AI.**
+      `aws-job-streamer` is 100% httpx and mocks with respx; the other two use
+      requests. `fetchers/base.py` already supplies the shared client, timeouts
+      and User-Agent. Two HTTP stacks and two mocking libraries in one repo
+      would buy nothing.
 - [ ] 1.4 Rename the package `aws_job_streamer` → `jobradar` throughout
 - [ ] 1.5 Full suite green (should be ~400 of the original 498)
 
@@ -339,7 +342,6 @@ JobRadar-AI/
 │   ├── location_rank.py                     ← aws-job-streamer
 │   ├── watchlist.py         103 boards      ← aws-job-streamer
 │   ├── scoring.py           LLM boundary    ← aws-job-streamer (provider swap)
-│   ├── http_client.py       retries/pacing  ← SkyCast-AI
 │   ├── lakebase.py          connection      ← SkyIndex-AI
 │   ├── embeddings.py        chunk + embed   ← SkyIndex-AI
 │   ├── repository.py        reads + WRITES  ← SkyIndex-AI + new

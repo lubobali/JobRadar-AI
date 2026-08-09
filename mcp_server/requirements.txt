@@ -1,0 +1,7 @@
+# The MCP server. Deployed to jobradar.lubot.ai, not as a Databricks App -
+# the AI Gateway cannot authenticate to a Databricks App. See PLAN.md section 6.
+fastmcp>=3.4.0
+uvicorn>=0.30.0
+psycopg2-binary>=2.9.9
+sentence-transformers>=3.0.0
+databricks-sdk>=0.30.0

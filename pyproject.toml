@@ -1,0 +1,57 @@
+# Tooling CONFIG ONLY.
+# Dependencies live in requirements.txt / requirements-dev.txt — never here.
+# This project is not packaged/installed; pytest resolves imports via `pythonpath`.
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # bugbear
+    "C4",   # comprehensions
+    "SIM",  # simplify
+    "RET",  # return consistency
+    "PTH",  # use pathlib
+    "ANN",  # require type annotations
+    "TID",  # tidy imports
+    "PL",   # pylint
+    "RUF",  # ruff-specific
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Asserts and magic values are the point of a test.
+"tests/**" = ["PLR2004", "S101"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "parents"
+
+[tool.pytest.ini_options]
+# src layout: tests import `jobradar` without installing the package. The MCP
+# server and the Flask app are their own deploy units, so their directories go
+# on the path too - exactly how each one imports at runtime.
+pythonpath = ["src", "mcp_server", "app"]
+testpaths = ["tests", "src"]
+addopts = [
+    "--doctest-modules",   # pure functions carry doctests
+    "--strict-markers",
+    "--strict-config",
+    "-ra",
+]
+markers = [
+    "fast: every external boundary mocked (the default)",
+    "live: hits a real job API, a real Lakebase, or a deployed MCP server",
+]
+filterwarnings = [
+    # A warning is how pytest reports a test it could not collect (PytestCollectionWarning).
+    # Left as a warning it scrolls past and the suite still says "passed" — which is exactly
+    # how ~50 tests stayed dead for two days. See tests/test_collection_guard.py.
+    "error",
+]

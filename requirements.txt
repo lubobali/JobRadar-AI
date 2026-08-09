@@ -1,0 +1,13 @@
+# Core runtime for the ingest and embedding notebooks.
+# Dependencies live here, never in pyproject.toml.
+#
+# httpx, not requests. Every fetcher ported from aws-job-streamer is written
+# against httpx and mocked with respx. SkyIndex-AI and SkyCast-AI use requests,
+# but pulling their HTTP layer in would mean two HTTP stacks and two mocking
+# libraries in one repo, for no gain: fetchers/base.py already provides the
+# shared client, timeouts, and User-Agent.
+httpx==0.28.1
+
+psycopg2-binary>=2.9.9
+sentence-transformers>=3.0.0
+databricks-sdk>=0.30.0
