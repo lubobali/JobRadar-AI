@@ -193,10 +193,35 @@ SPEC_FIELDS = ["kind", "slug", "company", "query", "where", "tenant", "site", "h
 specs_df = spark.createDataFrame([asdict(spec) for spec in specs]).repartition(32)
 
 
+# The credentials have to travel INSIDE the closure.
+#
+# The cell above put them in os.environ, which is a driver-side process. An
+# executor is a different Python process on a different machine and inherits
+# none of it, so every fetcher that reads os.environ found nothing there and
+# reported a missing key - while the same spec fetched fine from a terminal.
+#
+# The symptom is quiet, which is what makes it worth the comment: the run
+# succeeds, the numbers look plausible, and the only trace is that the sources
+# needing a key are in the failed list every single time. It reads like a bad
+# key rather than a key that never arrived.
+#
+# A closure is pickled and shipped with the UDF, so this dict does arrive.
+_CREDENTIALS = {
+    name: os.environ[name]
+    for name in ("ADZUNA_APP_ID", "ADZUNA_APP_KEY", "USAJOBS_EMAIL", "USAJOBS_API_KEY")
+    if os.environ.get(name)
+}
+print(f"shipping {len(_CREDENTIALS)} credentials to the executors")
+
+
 @F.udf(returnType=FETCH_RESULT)
 def fetch(kind, slug, company, query, where, tenant, site, host):
     # Imported inside the UDF because this runs on an executor, which has the
     # package from the %pip install rather than from the driver's namespace.
+    import os as executor_os
+
+    executor_os.environ.update(_CREDENTIALS)
+
     from jobradar import ingest
 
     spec = ingest.SourceSpec(
