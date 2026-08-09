@@ -27,10 +27,12 @@ import base64
 import logging
 import os
 import threading
+from collections.abc import Iterator
 from contextlib import contextmanager
+from pathlib import Path
+from typing import Any
 from urllib.parse import quote
 
-import psycopg2
 from psycopg2 import pool as pg_pool
 from psycopg2.extras import RealDictCursor
 
@@ -102,7 +104,9 @@ def _url_from_secret() -> str | None:
     tried instead of an SDK stack trace.
     """
     try:
-        from databricks.sdk import WorkspaceClient
+        # Deferred on purpose: local runs and CI have no databricks-sdk, and a
+        # missing one should skip this lookup rather than stop the module loading.
+        from databricks.sdk import WorkspaceClient  # noqa: PLC0415
     except ImportError:
         logger.debug("databricks-sdk not installed; skipping secret lookup")
         return None
@@ -140,7 +144,9 @@ def get_url() -> str:
 
 def _get_pool() -> pg_pool.ThreadedConnectionPool:
     """Lazily build the connection pool. Safe to call from multiple threads."""
-    global _pool
+    # One pool per process is the entire point of a pool, so it is module
+    # state by design rather than by accident.
+    global _pool  # noqa: PLW0603
     if _pool is None:
         with _pool_lock:
             if _pool is None:  # re-check inside the lock
@@ -153,7 +159,7 @@ def _get_pool() -> pg_pool.ThreadedConnectionPool:
 
 def reset_pool() -> None:
     """Close and discard the pool. Used by tests and after credential changes."""
-    global _pool
+    global _pool  # noqa: PLW0603
     with _pool_lock:
         if _pool is not None:
             try:
@@ -164,7 +170,7 @@ def reset_pool() -> None:
 
 
 @contextmanager
-def get_connection():
+def get_connection() -> Iterator[Any]:
     """Yield a pooled connection, committing on success, rolling back on error.
 
     Owning commit/rollback here means no caller can leave a half-applied
@@ -184,36 +190,32 @@ def get_connection():
 
 def run_query(sql: str, params: tuple | dict | None = None) -> list[dict]:
     """Run a read query and return rows as a list of dicts."""
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(sql, params)
-            return [dict(row) for row in cur.fetchall()]
+    with get_connection() as conn, conn.cursor() as cur:
+        cur.execute(sql, params)
+        return [dict(row) for row in cur.fetchall()]
 
 
 def run_query_one(sql: str, params: tuple | dict | None = None) -> dict | None:
     """Run a read query expected to return at most one row."""
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(sql, params)
-            row = cur.fetchone()
-            return dict(row) if row else None
+    with get_connection() as conn, conn.cursor() as cur:
+        cur.execute(sql, params)
+        row = cur.fetchone()
+        return dict(row) if row else None
 
 
 def run_write(sql: str, params: tuple | dict | None = None) -> int:
     """Run an INSERT/UPDATE/DELETE and return the affected row count."""
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(sql, params)
-            return cur.rowcount
+    with get_connection() as conn, conn.cursor() as cur:
+        cur.execute(sql, params)
+        return cur.rowcount
 
 
 def healthcheck() -> bool:
     """Return True when Lakebase answers a trivial query."""
     try:
-        with get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT 1 AS ok")
-                return cur.fetchone() is not None
+        with get_connection() as conn, conn.cursor() as cur:
+            cur.execute("SELECT 1 AS ok")
+            return cur.fetchone() is not None
     except Exception:
         logger.warning("Lakebase healthcheck failed", exc_info=True)
         return False
@@ -221,12 +223,10 @@ def healthcheck() -> bool:
 
 def apply_schema(schema_path: str | None = None) -> None:
     """Execute schema.sql against Lakebase (idempotent - see the file header)."""
-    path = schema_path or os.path.join(os.path.dirname(os.path.abspath(__file__)), "schema.sql")
-    with open(path, encoding="utf-8") as handle:
-        ddl = handle.read()
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(ddl)
+    path = Path(schema_path) if schema_path else Path(__file__).resolve().parent / "schema.sql"
+    ddl = path.read_text(encoding="utf-8")
+    with get_connection() as conn, conn.cursor() as cur:
+        cur.execute(ddl)
     logger.info("Applied schema from %s", path)
 
 
