@@ -16,7 +16,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jobradar"
-version = "0.3.0"
+# BUMP THIS whenever src/jobradar changes and the Databricks App or a notebook
+# needs the change. Both install the package from git, and pip resolves
+# `jobradar @ git+...` against the version ALREADY INSTALLED: same version means
+# "requirement already satisfied", so it silently keeps the old code.
+#
+# The App ships app/ as source but src/jobradar through pip, so a change to one
+# deploys and a change to the other does not. That asymmetry has now caused two
+# crashes, both of which read as "App built successfully" followed immediately
+# by "App crashed at startup" - because the module the app imports was never
+# installed.
+#
+# 0.4.0: adds jobradar.drafting.
+version = "0.4.0"
 description = "AI job hunting copilot: Spark ingest, pgvector matching, and an MCP agent."
 requires-python = ">=3.11"
 dependencies = []
