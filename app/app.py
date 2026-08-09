@@ -202,9 +202,10 @@ def insights_page():  # noqa: ANN201
     def totals(metric: str) -> list[tuple[str, int]]:
         counts: dict[str, int] = {}
         for row in grouped.get(metric, []):
-            counts[row["dimension"] or "total"] = (
-                counts.get(row["dimension"] or "total", 0) + row["value"]
-            )
+            # A metric with no breakdown - jobs_saved is just a count - stores
+            # NULL. "all" reads as a label; the raw NULL reads as a bug.
+            key = row["dimension"] or "all"
+            counts[key] = counts.get(key, 0) + row["value"]
         return sorted(counts.items(), key=lambda kv: -kv[1])
 
     return render_template(

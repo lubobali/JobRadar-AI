@@ -1,9 +1,10 @@
 # JobRadar-AI
 
 An AI job hunting copilot. It pulls postings from eight job APIs with Spark,
-turns 5,540 job descriptions into 60,860 searchable vectors, ranks them against
-a real resume with an LLM, and puts an agent in front of the result that can
-both read the database and write to it.
+turns the descriptions into searchable vectors, ranks them against a real resume
+with an LLM, and puts an agent in front of the result that can both read the
+database and write to it. Change Data Feed on Delta mirrors turns the write
+history into analytics.
 
 Databricks AI Bootcamp capstone, option 5.
 **Grading it?** Start at [SUBMISSION.md](SUBMISSION.md) — every URL and every
@@ -15,8 +16,9 @@ requirement mapped to the file and the screenshot that proves it.
 | **MCP server** | https://jobradar.lubot.ai/mcp (bearer auth) · [status](https://jobradar.lubot.ai/status) |
 | **Repo** | https://github.com/lubobali/JobRadar-AI |
 | **Agent** | `jobradar-agent`, Databricks Agent Bricks |
-| **Database** | Lakebase (Postgres 17 + pgvector), schema `jobradar`, 10 tables |
-| **Tests** | 829 fast, 26 live, ruff clean |
+| **Database** | Lakebase (Postgres 17 + pgvector), schema `jobradar`, 11 tables |
+| **Delta** | `bootcamp_students.lubo_jobradar.jobradar_*`, Change Data Feed enabled |
+| **Tests** | 842 fast, 26 live, ruff clean |
 
 ---
 
@@ -99,8 +101,7 @@ Let's Encrypt. Deploy script: [`scripts/deploy_mcp.sh`](scripts/deploy_mcp.sh).
 
 ## Requirement traceability
 
-Every capstone must satisfy five requirements. Here is exactly where each one
-lives and how to check it.
+Here is exactly where each requirement lives and how to check it.
 
 Screenshots of every one of them, with the numbers they produced, are in
 [`screenshots/`](screenshots/) — start with its
@@ -108,11 +109,12 @@ Screenshots of every one of them, with the numbers they produced, are in
 
 | # | Requirement | Where it lives | Evidence it ran |
 |---|---|---|---|
-| **1** | **Data pipeline in Spark** | [`notebooks/ingest_jobs.py`](notebooks/ingest_jobs.py) — 129 source specs become a DataFrame, a UDF fans out the fetches across executors, results are exploded, deduplicated twice, and written to Lakebase | **5,540 postings** in `job_postings` from 113 of 129 successful fetches |
-| **2** | **Third-party API integration** | [`src/jobradar/fetchers/`](src/jobradar/fetchers/) — 8 clients: Greenhouse, Ashby, Lever, Workday, Remotive, Breezy, Adzuna, USAJobs | greenhouse 3,040 · ashby 2,335 · lever 97 · workday 49 · remotive 19 |
-| **3** | **Unstructured data processing** | [`src/jobradar/embeddings.py`](src/jobradar/embeddings.py) + [`notebooks/embed_jobs.py`](notebooks/embed_jobs.py) (HTML to contextual chunks to `vector(384)`), and [`src/jobradar/scoring.py`](src/jobradar/scoring.py) (an LLM reading each description against the resume) | **60,860 vectors** covering all 5,540 jobs; **300 LLM-scored**, scores spanning 8 to 92 |
+| **1** | **Data pipeline in Spark** | [`notebooks/ingest_jobs.py`](notebooks/ingest_jobs.py) — 129 source specs become a DataFrame, a UDF fans out the fetches across executors, results are exploded, deduplicated twice, and written to Lakebase | **5,718 postings** in `job_postings` |
+| **2** | **Third-party API integration** | [`src/jobradar/fetchers/`](src/jobradar/fetchers/) — 8 clients: Greenhouse, Ashby, Lever, Workday, Remotive, Breezy, Adzuna, USAJobs | 6 sources with data: greenhouse 3,040 · ashby 2,335 · **adzuna 177** · lever 97 · workday 50 · remotive 19 |
+| **3** | **Unstructured data processing** | [`src/jobradar/embeddings.py`](src/jobradar/embeddings.py) + [`notebooks/embed_jobs.py`](notebooks/embed_jobs.py) (HTML to contextual chunks to `vector(384)`), and [`src/jobradar/scoring.py`](src/jobradar/scoring.py) (an LLM reading each description against the resume) | **60,860+ vectors**; **300 LLM-scored**, scores spanning 8 to 92, mean 42 |
 | **4** | **Databricks App with frontend** | [`app/`](app/) — Flask + Jinja. Four tabs: ranked search with filters, Saved, Applied, and **Ask** — a full conversation with the agent, on the same page as the data it is writing to | Live at the App URL above |
-| **5** | **AI agent with read and write** | [`mcp_server/jobs_mcp_server.py`](mcp_server/jobs_mcp_server.py) — 9 tools, and [`agent/system_prompt.md`](agent/system_prompt.md) | Transcripts in [`agent/agent_config.md`](agent/agent_config.md); the agent logged application 2 and read it back |
+| **5** | **AI agent with read and write** | [`mcp_server/jobs_mcp_server.py`](mcp_server/jobs_mcp_server.py) — 11 tools, 5 read and 6 write, and [`agent/system_prompt.md`](agent/system_prompt.md) | Transcripts in [`agent/agent_config.md`](agent/agent_config.md); the agent logged application 2 and read it back |
+| **6** | **Change Data Feed → Delta analytics** | [`notebooks/cdf_analytics.py`](notebooks/cdf_analytics.py) — the operational tables mirrored into Delta with CDF on, `table_changes()` aggregated into `jobradar_analytics_daily`, results published back to Lakebase | 4 Delta tables with `enableChangeDataFeed = true`; the App's **Insights** tab renders it |
 
 ### The agent's eleven tools
 
@@ -301,7 +303,7 @@ git clone https://github.com/lubobali/JobRadar-AI.git
 cd JobRadar-AI
 python3 -m venv venv && ./venv/bin/pip install -r requirements-dev.txt
 ./venv/bin/pip install -e .
-./venv/bin/python -m pytest -q          # 829 tests, no credentials needed
+./venv/bin/python -m pytest -q          # 842 tests, no credentials needed
 ```
 
 The fast suite mocks every external boundary, so it runs offline in under two
@@ -343,10 +345,11 @@ This is the third admin restriction in this workspace to shape the architecture,
 after no service principals and no dynamic client registration. Each one is
 documented where it bites rather than worked around silently.
 
-**Two of the eight APIs returned no data.** Adzuna and USAJobs need API keys I
-did not register for, which accounts for 14 of the 16 failed fetches. Both
-clients are written and unit-tested; they return nothing without credentials
-rather than failing the run. Five sources produced the 5,540 postings, which was
+**USAJobs returns no data.** Its key answers 401 to a direct curl with the
+documented headers, so the key itself is dead rather than absent. The client is
+written and unit-tested and reports the failure as data, so the run completes.
+Adzuna, the other keyed source, now works and contributes 177 postings. Six
+sources produced the 5,718 postings, which was
 more than enough data to build on, and adding a key later needs no code change.
 
 **Only 300 jobs are LLM-scored, not all 5,540.** Each score is an LLM call
@@ -375,7 +378,7 @@ costs nothing to do at the start.
 
 ## Testing
 
-855 tests, 829 of which need no credentials.
+868 tests, 842 of which need no credentials.
 
 | Area | Tests |
 |---|---|
@@ -413,7 +416,7 @@ app/                the Databricks App: Flask, Jinja templates
 agent/              system_prompt.md, agent_config.md
 scripts/            deploy_mcp.sh, seed_profile.py, smoke_test.py
 screenshots/        evidence for each requirement, with an index
-tests/              855 tests
+tests/              868 tests
 PLAN.md             the build plan this was written against
 ```
 
