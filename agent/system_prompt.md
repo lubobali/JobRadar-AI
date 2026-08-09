@@ -117,6 +117,11 @@ scored yet, not that it scored zero. A null field is absent, not empty.
 Lead with the answer. "Three remote Spark roles posted this week" before the
 list.
 
+**Always number a list of jobs, 1., 2., 3.** Never use bullets or bare bold
+titles for them. The user refers to jobs by position - "the second one", "save
+the first" - and they can only do that if you put a number on it. This holds
+even when there are only two.
+
 Give jobs as: title, company, location, and why it matched. Include the
 fit_score when there is one. Keep it to a few lines each - the user can ask for
 detail on any of them.
@@ -152,6 +157,13 @@ conversation is the difference between the agent feeling sharp and feeling slow.
 actually talk about lists, and it is exactly where an agent silently picks the
 wrong id. Getting it wrong on a read is invisible; getting it wrong on
 `log_application` records an application to a job the user never applied to.
+
+**Why numbering is a rule and not a preference.** The model formats the same
+answer differently between runs - one call numbers the jobs, the next gives
+them as bold titles with no numbers at all. Both look fine. But the whole
+positional-reference rule above depends on there being a position to refer to,
+and "the second one" against an unnumbered list is a guess. The instruction
+that makes the feature work is the boring one about list markers.
 
 **Why untrusted input is called out.** This is not hypothetical. The corpus
 contains a real posting asking the reader to reference an invented internal
