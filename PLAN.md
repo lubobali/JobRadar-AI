@@ -227,8 +227,7 @@ and records; it never applies on your behalf.
       existing instance
 - [ ] 0.2 Spark available in a serverless notebook in this workspace
 - [ ] 0.3 An App slot is free
-- [ ] 0.4 **DNS**: `jobradar.lubot.ai` A → `178.156.214.8` (needs propagation,
-      do it first)
+- [x] 0.4 **DNS**: `jobradar.lubot.ai` → `178.156.214.8`, live
 - [ ] 0.5 Adzuna + USAJobs API keys located
 
 ### Phase 1 — Scaffold and port (60 min)
@@ -254,17 +253,18 @@ provider swap removes it.
 
 ### Phase 2 — Schema and storage (45 min)
 
-- [ ] 2.1 **From SkyIndex-AI**: `lakebase.py`, `setup_secrets.py`,
-      `schema.sql` as the pattern
-- [ ] 2.2 Write the nine tables. `CREATE EXTENSION vector` first, HNSW index on
-      `job_embeddings`, FKs `ON DELETE CASCADE`, idempotent DDL
-- [ ] 2.3 **From SkyIndex-AI**: `repository.py`. Adapt the search to
-      `job_embeddings`, keep the dedup CTE
-- [ ] 2.4 **New**: the write functions — `save_job`, `log_application`,
-      `update_application_status`, `add_interview_note`, `add_contact`
+- [x] 2.1 `lakebase.py` ported from SkyIndex-AI
+- [x] 2.2 Ten tables applied and verified in Lakebase
+- [x] 2.3 `repository.py` ported, search adapted, both dedup rounds kept
+- [x] 2.4 Write functions added, all five plus `unsave_job`
 - [ ] 2.5 Seed one user + profile from the real resume (gitignored;
       `profile.example.json` ships)
-- [ ] 2.6 Tests: fake cursor **and** real Lakebase
+- [x] 2.6 Tests: 42 against a fake cursor, 26 against real Lakebase
+      (`tests/test_live_lakebase.py`, marked `live`)
+
+**Phase 0 note.** `CREATE DATABASE` is refused on this account, so JobRadar
+lives in schema `jobradar` inside the shared database and `lakebase.py` pins
+`search_path` on every connection.
 
 ### Phase 3 — Spark ingest (90 min) — requirement 1
 
