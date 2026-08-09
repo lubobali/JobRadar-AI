@@ -191,6 +191,11 @@ applications. It is called **Applied**.
 
 Do not rediscover these.
 
+**Serverless compute has no SparkContext.** No `parallelize`, no `addPyFile`.
+Fan out with a UDF over a DataFrame instead, and `%pip install git+...` the
+package so the executors get it - which is why the repo carries packaging
+metadata it would not otherwise need.
+
 **Host the MCP server publicly from day one.** The Databricks AI Gateway cannot
 authenticate to a Databricks App: no DCR (`registration_endpoint` absent), PATs
 rejected (Apps take OAuth only), OAuth M2M needs a service principal
@@ -266,18 +271,34 @@ provider swap removes it.
 lives in schema `jobradar` inside the shared database and `lakebase.py` pins
 `search_path` on every connection.
 
-### Phase 3 — Spark ingest (90 min) — requirement 1
+### Phase 3 — Spark ingest — requirement 1  ✅ DONE
 
-- [ ] 3.1 `notebooks/ingest_jobs.py`. Fetch all 8 sources concurrently
-      (**reuses** the Phase 1 fetchers unchanged)
-- [ ] 3.2 Normalize into one Spark DataFrame with an explicit `StructType`, not
-      inferred, so a source changing shape fails loudly
-- [ ] 3.3 Dedup level 1 in Spark on `make_job_id`, keep the freshest per id
-- [ ] 3.4 Dedup level 2 on `cross_source_key`, prefer ATS over aggregator
-- [ ] 3.5 `html_text` and `prefilter` as Spark UDFs
-- [ ] 3.6 Write via psycopg2 `execute_values`, **not** `spark.write.jdbc` —
-      JDBC cannot express `ON CONFLICT` or write pgvector types
-- [ ] 3.7 Log rows in / kept / written, per source
+**First full run, 2026-08-09:**
+
+```
+129 sources          16 failed (Adzuna/USAJobs keys missing, plus dead boards)
+8,314 fetched
+8,222 after id dedup            92 same-posting duplicates
+8,145 after cross-source dedup  77 collapsed
+5,539 after prefilter           2,606 not US-workable
+5,539 written to job_postings
+```
+
+The 77 is the cross-source dedup doing the thing `make_job_id` structurally
+cannot: the same role arriving from an ATS and from an aggregator under two
+different source ids. Without it, each of those gets embedded twice and appears
+twice in every search.
+
+16 sources failed and the run completed anyway, which is the errors-as-data
+design working.
+
+- [x] 3.1 `notebooks/ingest_jobs.py`, fetchers reused unchanged
+- [x] 3.2 Explicit `StructType`
+- [x] 3.3 Dedup 1 (window on id, freshest wins) — 92 collapsed
+- [x] 3.4 Dedup 2 (window on cross_source_key, ATS wins) — 77 collapsed
+- [x] 3.5 `html_text` in `to_row`, `prefilter.is_us_eligible` as a UDF
+- [x] 3.6 `foreachPartition` + `execute_values`, repartitioned to 8
+- [x] 3.7 Funnel logged at every stage
 - [ ] 3.8 Schedule it as a Databricks Job
 
 ### Phase 4 — Unstructured processing (60 min) — requirement 3
