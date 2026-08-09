@@ -116,7 +116,18 @@ def _failed(exc: Exception) -> dict:
         not_found     the row does not exist, or is not this user's.
         internal      a bug here. Say the tool is unavailable; do not invent.
     """
-    if isinstance(exc, (BadArgument, ValueError)):
+    # BadArgument ONLY, not ValueError. Every argument this server accepts goes
+    # through validation, which raises BadArgument - so a bare ValueError comes
+    # from a library, not from the caller, and is not something the caller can
+    # fix. Catching it here told the agent to retry a missing Databricks
+    # credential and put the SDK's own error text in front of the user:
+    #
+    #   bad_request: default auth: cannot configure default credentials, please
+    #   check https://docs.databricks.com/... to configure credentials
+    #
+    # which is advice for whoever deployed the server, not for the person
+    # asking for a cover letter.
+    if isinstance(exc, BadArgument):
         return {"error": str(exc), "error_type": "bad_request"}
 
     logger.exception("Unexpected failure in a tool call")

@@ -71,6 +71,25 @@ grep -q '^LAKEBASE_URL=' "$DIR/.env" || cat >> "$DIR/.env" <<'EOF'
 # lakebase.py resolves it from the lubo-jobradar secret scope.
 EOF
 
+# draft_application_text calls a Databricks Foundation Model, so this host needs
+# an identity of its own. Everything else here talks only to Postgres and works
+# without these; drafting is the one tool that does not, and it fails as
+# internal_error rather than pretending.
+#
+# Deliberately NOT generated or prompted for by this script: a token typed into
+# a deploy is a token in a shell history. Add it on the host:
+#
+#   printf 'DATABRICKS_HOST=https://<workspace>.cloud.databricks.com\n' >> /opt/jobradar/.env
+#   printf 'DATABRICKS_TOKEN=<pat>\n' >> /opt/jobradar/.env
+#   systemctl restart jobradar
+#
+if grep -q '^DATABRICKS_TOKEN=' "$DIR/.env"; then
+  echo "    Databricks credentials present (drafting enabled)"
+else
+  echo "    no DATABRICKS_TOKEN: draft_application_text will report itself"
+  echo "    unavailable. Every other tool works. See the comment in this script."
+fi
+
 chown -R "$USER:$USER" "$DIR"
 chmod 600 "$DIR/.env"
 

@@ -488,3 +488,46 @@ class TestDrafting:
         result = server.draft_application_text("abc")
         assert result["error_type"] == "internal_error"
         assert "text" not in result
+
+
+class TestErrorClassification:
+    """Which failures the agent is told it can fix.
+
+    The system prompt tells the agent that bad_request means "fix it and retry
+    once" and internal_error means "say the tool is unavailable". Classifying
+    an infrastructure failure as bad_request sends it into a retry loop on
+    something no argument can change.
+    """
+
+    def test_a_library_valueerror_is_internal_not_bad_request(
+        self, wired: Wired
+    ) -> None:
+        """Every real argument goes through validation, which raises BadArgument.
+
+        A bare ValueError therefore comes from a library. This one is what the
+        Databricks SDK raises when the host has no credentials - advice for
+        whoever deployed the server, not for the person asking a question.
+        """
+        wired["returns"]["search"] = ValueError(
+            "default auth: cannot configure default credentials, please check "
+            "https://docs.databricks.com/en/dev-tools/auth.html"
+        )
+        result = server.search_jobs("spark")
+        assert result["error_type"] == "internal_error"
+        assert "databricks.com" not in result["error"]
+
+    def test_a_validation_failure_is_still_bad_request(self, wired: Wired) -> None:
+        result = server.search_jobs("   ")
+        assert result["error_type"] == "bad_request"
+        assert "must not be empty" in result["error"]
+
+    def test_a_drafting_failure_is_internal(
+        self, wired: Wired, monkeypatch: MonkeyPatch
+    ) -> None:
+        wired["returns"]["job_for_drafting"] = TestDrafting._job()
+
+        def boom(self: object, j: object, p: object, k: object) -> str:
+            raise DraftingError("no Databricks credentials available for drafting")
+
+        monkeypatch.setattr(server.drafting.DatabricksDrafter, "draft", boom)
+        assert server.draft_application_text("abc")["error_type"] == "internal_error"

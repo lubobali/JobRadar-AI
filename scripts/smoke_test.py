@@ -31,6 +31,10 @@ CASES: list[tuple[str, dict]] = [
     ("search_jobs", {"query": "remote machine learning platform", "top_k": 3,
                      "remote_only": True}),
     ("list_applications", {}),
+    # "What is going cold?" - the stale path, which is pure SQL and so is
+    # exactly the kind of thing a mocked cursor cannot prove.
+    ("list_applications", {"stale_days": 1}),
+    ("list_applications", {"stale_days": "7"}),
     # The failure paths matter as much as the happy ones. An agent's honesty
     # depends on these coming back as readable errors rather than as crashes,
     # and on the write tools refusing what they should refuse.
@@ -39,6 +43,11 @@ CASES: list[tuple[str, dict]] = [
     ("log_application", {"job_id": "x", "status": "in progress"}),
     ("update_application_status", {"application_id": 999999, "status": "offer"}),
     ("add_interview_note", {"application_id": "the second one", "note": "hi"}),
+    ("list_applications", {"stale_days": "soon"}),
+    ("set_follow_up", {"application_id": 999999, "follow_up_on": "2026-09-01"}),
+    ("set_follow_up", {"application_id": 1, "follow_up_on": "next Tuesday"}),
+    ("draft_application_text", {"job_id": "no-such-job"}),
+    ("draft_application_text", {"job_id": "x", "kind": "haiku"}),
 ]
 
 
