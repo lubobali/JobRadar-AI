@@ -406,18 +406,7 @@ def search(  # noqa: PLR0913 - the query plus the same filters as list_jobs
             SELECT e.job_id,
                    e.chunk_index,
                    e.chunk_text,
-                   -- Keyed on the CHUNK, not the job. content_hash
-                   -- fingerprints a whole description, and two postings that
-                   -- differ elsewhere can still share a byte-identical
-                   -- paragraph.
-                   --
-                   -- Whitespace is REMOVED before hashing, not collapsed.
-                   -- Boards wrap text at different widths, and a wrap can land
-                   -- inside a hyphenated word or a URL, so "full-stack"
-                   -- becomes "full- stack" in one copy and stays joined in the
-                   -- other. Collapsing runs of whitespace does not make those
-                   -- two equal; deleting it does.
-                   md5(regexp_replace(e.chunk_text, '\\s', '', 'g')) AS chunk_key,
+                   j.cross_source_key,
                    e.embedding <=> %s::vector AS distance
             FROM {EMBEDDINGS_TABLE} e
             JOIN {JOBS_TABLE} j ON j.id = e.job_id
@@ -436,14 +425,22 @@ def search(  # noqa: PLR0913 - the query plus the same filters as list_jobs
             FROM candidates
             ORDER BY job_id, distance
         ),
-        -- 2. One result per distinct TEXT. This is the cross-source duplicate
-        --    arriving at query time: the same posting from Greenhouse and from
-        --    Adzuna has different ids, so it survives step 1 untouched, but the
-        --    description text is identical.
+        -- 2. One result per real-world JOB. The same role published on
+        --    Greenhouse and relayed by Adzuna has two different ids, so it
+        --    survives round 1 untouched.
+        --
+        --    Keyed on cross_source_key rather than on the chunk text. Hashing
+        --    the text was the first attempt, inherited from a corpus of
+        --    weather alerts where identical wording really did mean the same
+        --    alert reissued per county. Job postings are not like that: every
+        --    role at one company shares a boilerplate paragraph - "At X, we
+        --    are passionate about..." - so forty DIFFERENT jobs collapsed into
+        --    one and a top_k of 300 returned 31 rows. Same text is not the
+        --    same job.
         best AS (
-            SELECT DISTINCT ON (chunk_key) *
+            SELECT DISTINCT ON (cross_source_key) *
             FROM per_job
-            ORDER BY chunk_key, distance
+            ORDER BY cross_source_key, distance
         )
         SELECT j.id, j.source, j.company, j.title, j.url, j.location,
                j.remote, j.salary, j.posted_at, j.fetched_at,

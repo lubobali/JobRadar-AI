@@ -225,23 +225,27 @@ class TestSearch:
         sql = calls[0][0]
         assert "ORDER BY e.embedding <=> %s::vector" in sql
 
-    def test_deduplicates_per_job_then_per_text(self, captured: Captured) -> None:
+    def test_deduplicates_per_job_then_per_real_world_job(self, captured: Captured) -> None:
         calls, _ = captured
         repository.search([0.1] * 384, user_id=1)
         sql = calls[0][0]
         assert "DISTINCT ON (job_id)" in sql
-        assert "DISTINCT ON (chunk_key)" in sql
+        assert "DISTINCT ON (cross_source_key)" in sql
 
-    def test_chunk_key_removes_whitespace_rather_than_collapsing_it(
-        self, captured: Captured
-    ) -> None:
-        # Boards wrap at different widths and a wrap can land inside a
-        # hyphenated word, so "full- stack" and "full-stack" are the same text.
-        # Collapsing runs of whitespace does not make those equal; deleting it
-        # does.
+    def test_it_does_not_deduplicate_on_the_chunk_text(self, captured: Captured) -> None:
+        """The bug this replaced, kept as a test so it cannot come back.
+
+        Hashing the chunk text was inherited from a corpus of weather alerts,
+        where identical wording did mean the same alert reissued per county.
+        Job postings are not like that: every role at one company shares a
+        boilerplate paragraph, so forty DIFFERENT jobs collapsed into one and a
+        top_k of 300 returned 31 rows. Same text is not the same job.
+        """
         calls, _ = captured
         repository.search([0.1] * 384, user_id=1)
-        assert r"regexp_replace(e.chunk_text, '\s', '', 'g')" in calls[0][0]
+        sql = calls[0][0]
+        assert "chunk_key" not in sql
+        assert "regexp_replace" not in sql
 
     def test_overfetches_candidates_before_deduplicating(self, captured: Captured) -> None:
         calls, _ = captured
