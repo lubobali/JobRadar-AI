@@ -22,7 +22,7 @@
       "salary_min": 85389,
       "salary_max": 116975,
       "salary_is_predicted": "0",
-      "redirect_url": "https://www.adzuna.com/details/5801147013?utm_medium=api&utm_source=d6920beb",
+      "redirect_url": "https://www.adzuna.com/details/5801147013?utm_medium=api&utm_source=REDACTED_APP_ID",
       "created": "2026-07-15T08:33:45Z",
       "location": {
         "__CLASS__": "Adzuna::API::Response::Location",
@@ -37,7 +37,7 @@
     },
     {
       "id": "5801265421",
-      "redirect_url": "https://www.adzuna.com/details/5801265421?utm_medium=api&utm_source=d6920beb",
+      "redirect_url": "https://www.adzuna.com/details/5801265421?utm_medium=api&utm_source=REDACTED_APP_ID",
       "created": "2026-07-15T10:13:04Z",
       "location": {
         "area": [
@@ -74,7 +74,7 @@
       "description": "Job: 3042215 Job Description: Data Engineer Location: Eagan, Minnesota (Remote) Role Overview We are seeking a mid-to-senior level Data Engineer to design, build, test, and support data integrations. This role involves implementing solutions for integrating with third-party vendors and establishing new data patterns. The position requires a professional who can contribute to solutions independently while collaborating with technical leads and solution architects. Key Responsibilities Lead the d…",
       "salary_is_predicted": "1",
       "id": "5801264268",
-      "redirect_url": "https://www.adzuna.com/land/ad/5801264268?se=VDsBa16A8RGDMNFo9qkXsw&utm_medium=api&utm_source=d6920beb&v=F22BBB91F40AE5D80B64DB6DF0067630E1774355",
+      "redirect_url": "https://www.adzuna.com/land/ad/5801264268?se=VDsBa16A8RGDMNFo9qkXsw&utm_medium=api&utm_source=REDACTED_APP_ID&v=F22BBB91F40AE5D80B64DB6DF0067630E1774355",
       "created": "2026-07-15T09:48:28Z",
       "location": {
         "area": [
@@ -117,7 +117,7 @@
           "Trammells"
         ]
       },
-      "redirect_url": "https://www.adzuna.com/details/5801171816?utm_medium=api&utm_source=d6920beb",
+      "redirect_url": "https://www.adzuna.com/details/5801171816?utm_medium=api&utm_source=REDACTED_APP_ID",
       "created": "2026-07-15T08:46:03Z",
       "category": {
         "label": "IT Jobs",
