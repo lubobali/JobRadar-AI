@@ -7,13 +7,12 @@
 # MAGIC
 # MAGIC ```
 # MAGIC 129 source specs
-# MAGIC    │  parallelize        one partition per source, so 129 HTTP calls
-# MAGIC    │                     happen on executors rather than on the driver
+# MAGIC    │  createDataFrame    one row per source
 # MAGIC    ▼
-# MAGIC  flatMap(fetch)          a dead board returns an error, never raises
-# MAGIC    │
+# MAGIC  fetch UDF               129 HTTP calls, on executors, in parallel.
+# MAGIC    │                     A dead board returns an error, never raises.
 # MAGIC    ▼
-# MAGIC  DataFrame               explicit StructType, never inferred
+# MAGIC  explode                 one row per posting, explicit StructType
 # MAGIC    │
 # MAGIC    ├─ dedup 1            window over id, keep the freshest
 # MAGIC    ├─ dedup 2            window over cross_source_key, ATS beats aggregator
@@ -28,6 +27,19 @@
 # MAGIC frozen dataclasses of strings instead, which ship fine — so this is a real
 # MAGIC distributed fan-out and not Spark used as a write buffer.
 # MAGIC
+# MAGIC **Why the DataFrame API and not `sparkContext.parallelize`.** Serverless
+# MAGIC compute has no `SparkContext`:
+# MAGIC
+# MAGIC ```
+# MAGIC [JVM_ATTRIBUTE_NOT_SUPPORTED] SparkContext is not supported on serverless
+# MAGIC compute. If you require direct access to the SparkContext, switch to
+# MAGIC Dedicated access mode.
+# MAGIC ```
+# MAGIC
+# MAGIC So the RDD API is out, and with it `addPyFile` — which is why the package
+# MAGIC is `%pip install`ed from git rather than shipped as a zip. A UDF over a
+# MAGIC DataFrame of specs distributes exactly the same way.
+# MAGIC
 # MAGIC **Why not `spark.write.jdbc`.** It cannot express `ON CONFLICT DO UPDATE`,
 # MAGIC and it cannot write pgvector types. Both matter here: boards edit postings
 # MAGIC in place, and the embeddings table is `vector(384)`.
@@ -39,7 +51,11 @@
 # COMMAND ----------
 
 # DBTITLE 1,Dependencies
-# MAGIC %pip install -q httpx psycopg2-binary
+#
+# The package is installed rather than added to sys.path, because serverless has
+# no addPyFile and the executors need it too - a notebook-scoped %pip install is
+# the one mechanism that reaches both.
+# MAGIC %pip install -q httpx psycopg2-binary git+https://github.com/lubobali/JobRadar-AI.git
 
 # COMMAND ----------
 
@@ -60,43 +76,15 @@ DRY_RUN = dbutils.widgets.get("dry_run") == "true"
 
 # COMMAND ----------
 
-# DBTITLE 1,Get the code onto the driver AND the executors
+# DBTITLE 1,Which build is running
 #
-# The driver imports jobradar from a clone. The executors need it too, because
-# the fetch runs there - so the package is zipped and shipped with addPyFile.
-# Without that, flatMap fails on every executor with ModuleNotFoundError, which
-# reads like a broken cluster rather than a missing dependency.
+# Printed so a run in the logs can be tied to a commit. The install above pulls
+# the branch named by the widget.
 
-import shutil
-import subprocess
-import sys
-import zipfile
-from pathlib import Path
+import jobradar
 
-CHECKOUT = Path("/tmp/jobradar-src")
-if CHECKOUT.exists():
-    shutil.rmtree(CHECKOUT)
-subprocess.run(
-    ["git", "clone", "-q", "--depth", "1", "--branch", GIT_REF,
-     "https://github.com/lubobali/JobRadar-AI.git", str(CHECKOUT)],
-    check=True,
-)
-sys.path.insert(0, str(CHECKOUT / "src"))
-
-PACKAGE_ZIP = Path("/tmp/jobradar.zip")
-if PACKAGE_ZIP.exists():
-    PACKAGE_ZIP.unlink()
-with zipfile.ZipFile(PACKAGE_ZIP, "w", zipfile.ZIP_DEFLATED) as archive:
-    for path in (CHECKOUT / "src" / "jobradar").rglob("*.py"):
-        archive.write(path, path.relative_to(CHECKOUT / "src"))
-
-spark.sparkContext.addPyFile(str(PACKAGE_ZIP))
-
-commit = subprocess.run(
-    ["git", "-C", str(CHECKOUT), "rev-parse", "--short", "HEAD"],
-    capture_output=True, text=True, check=True,
-).stdout.strip()
-print(f"running {GIT_REF} @ {commit}")
+print(f"jobradar {jobradar.__file__}")
+commit = GIT_REF
 
 # COMMAND ----------
 
@@ -143,61 +131,16 @@ print("credentials loaded")
 
 # COMMAND ----------
 
-# DBTITLE 1,Fan out across every source
+# DBTITLE 1,The row schema
 #
-# One partition per source. Not a performance flourish: these are HTTP calls to
-# 129 different hosts, so the work is entirely I/O-bound and the only thing that
-# matters is that they do not queue behind each other. One partition each means
-# a slow board delays nothing but itself.
-
-from jobradar import ingest
-
-specs = ingest.source_specs()
-print(f"{len(specs)} sources")
-
-
-def fetch_partition(spec):
-    """Runs on an executor. Returns rows plus, if it failed, one error row.
-
-    Errors travel back as data rather than as exceptions, because a raise here
-    kills the partition and a short count with no explanation is worse than a
-    named failure.
-    """
-    from jobradar import ingest as executor_ingest
-
-    jobs, error = executor_ingest.fetch_spec(spec)
-    rows = [executor_ingest.to_row(job) for job in jobs]
-    return [("ok", row) for row in rows] + ([("error", error)] if error else [])
-
-
-fetched = (
-    spark.sparkContext
-    .parallelize(specs, numSlices=len(specs))
-    .flatMap(fetch_partition)
-    .collect()
-)
-
-rows = [payload for kind, payload in fetched if kind == "ok"]
-errors = [payload for kind, payload in fetched if kind == "error"]
-
-print(f"fetched : {len(rows)} postings")
-print(f"failed  : {len(errors)} sources")
-for error in errors[:15]:
-    print(f"   {error}")
-if len(errors) > 15:
-    print(f"   ... and {len(errors) - 15} more")
-
-# COMMAND ----------
-
-# DBTITLE 1,Into a DataFrame, with a declared schema
-#
-# StructType written out rather than inferred. An inferred schema takes its
-# shape from whatever happened to arrive, so a source that starts returning
-# nulls for a column silently changes the type of that column, and the failure
-# surfaces later as a write error naming neither the source nor the field.
+# Declared, never inferred. An inferred schema takes its shape from whatever
+# happened to arrive, so a source that starts returning nulls for a column
+# silently changes that column's type, and the failure surfaces much later as a
+# write error naming neither the source nor the field.
 
 from pyspark.sql import functions as F
 from pyspark.sql.types import (
+    ArrayType,
     BooleanType,
     StringType,
     StructField,
@@ -223,9 +166,71 @@ JOB_SCHEMA = StructType([
     StructField("cross_source_key", StringType(), nullable=False),
 ])
 
-raw = spark.createDataFrame(rows, schema=JOB_SCHEMA)
-raw.cache()
-print(f"rows: {raw.count()}")
+FETCH_RESULT = StructType([
+    StructField("rows", ArrayType(JOB_SCHEMA)),
+    # The error travels back as DATA, not as an exception. A raise inside a UDF
+    # fails the whole stage, and the fan-out exists precisely so one dead board
+    # cannot do that. It also means a short count always has a name attached.
+    StructField("error", StringType()),
+])
+
+# COMMAND ----------
+
+# DBTITLE 1,Fan out across every source
+#
+# One row per source, one UDF call per row, executed across the cluster. These
+# are HTTP calls to 129 different hosts, so the work is entirely I/O-bound and
+# the only thing that matters is that they do not queue behind one another.
+
+from dataclasses import asdict
+
+from jobradar import ingest
+
+specs = ingest.source_specs()
+print(f"{len(specs)} sources")
+
+SPEC_FIELDS = ["kind", "slug", "company", "query", "where", "tenant", "site", "host"]
+specs_df = spark.createDataFrame([asdict(spec) for spec in specs]).repartition(32)
+
+
+@F.udf(returnType=FETCH_RESULT)
+def fetch(kind, slug, company, query, where, tenant, site, host):
+    # Imported inside the UDF because this runs on an executor, which has the
+    # package from the %pip install rather than from the driver's namespace.
+    from jobradar import ingest
+
+    spec = ingest.SourceSpec(
+        kind=kind or "",
+        slug=slug or "",
+        company=company or "",
+        query=query or "",
+        where=where or "",
+        tenant=tenant or "",
+        site=site or "",
+        host=host or "",
+    )
+    jobs, error = ingest.fetch_spec(spec)
+    return {"rows": [ingest.to_row(job) for job in jobs], "error": error}
+
+
+fetched = specs_df.withColumn("result", fetch(*[F.col(f) for f in SPEC_FIELDS])).cache()
+
+errors = [
+    row["error"]
+    for row in fetched.select(F.col("result.error").alias("error"))
+    .filter(F.col("error").isNotNull())
+    .collect()
+]
+
+raw = fetched.select(F.explode("result.rows").alias("job")).select("job.*").cache()
+
+print(f"fetched : {raw.count()} postings")
+print(f"failed  : {len(errors)} sources")
+for error in errors[:15]:
+    print(f"   {error}")
+if len(errors) > 15:
+    print(f"   ... and {len(errors) - 15} more")
+
 display(raw.groupBy("source").count().orderBy(F.desc("count")))
 
 # COMMAND ----------
@@ -297,7 +302,7 @@ print(f"after cross-source dedup: {deduped.count()} ({collapsed} duplicates coll
 @F.udf(returnType=BooleanType())
 def us_eligible(location: str) -> bool:
     # Imported inside the UDF: this runs on an executor, which gets the package
-    # from addPyFile rather than from the driver's sys.path.
+    # from the %pip install rather than from the driver's namespace.
     from jobradar import prefilter
 
     return prefilter.is_us_eligible(location)
@@ -364,7 +369,7 @@ from jobradar import repository
 summary = {
     "sources": len(specs),
     "sources_failed": len(errors),
-    "fetched": len(rows),
+    "fetched": raw.count(),
     "after_id_dedup": deduped_by_id.count(),
     "after_cross_source_dedup": deduped.count(),
     "after_prefilter": kept.count(),

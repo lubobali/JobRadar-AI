@@ -1,6 +1,31 @@
-# Tooling CONFIG ONLY.
-# Dependencies live in requirements.txt / requirements-dev.txt — never here.
-# This project is not packaged/installed; pytest resolves imports via `pythonpath`.
+# Tooling config, plus the minimum packaging metadata needed to pip-install
+# this from git.
+#
+# Runtime dependencies still live in requirements.txt / requirements-dev.txt and
+# are deliberately NOT declared here, so prod, CI and local all resolve from one
+# pinned file. `[project].dependencies` is left empty on purpose.
+#
+# Why packaging exists at all: Databricks serverless compute has no
+# SparkContext, so `addPyFile` is unavailable and there is no way to ship a zip
+# to the executors. A notebook-scoped `%pip install git+...` is the supported
+# route, and that needs the repo to be installable.
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jobradar"
+version = "0.1.0"
+description = "AI job hunting copilot: Spark ingest, pgvector matching, and an MCP agent."
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+jobradar = ["*.sql"]
 
 [tool.ruff]
 line-length = 100
