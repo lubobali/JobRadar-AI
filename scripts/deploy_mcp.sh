@@ -117,6 +117,14 @@ ReadWritePaths=/tmp
 Environment=PGSSLCERT=/tmp/no-client.crt
 Environment=PGSSLKEY=/tmp/no-client.key
 
+# Same cause, different library. HF_HOME defaults to ~/.cache, which
+# ProtectHome=true hides, so sentence-transformers cannot write the model it
+# downloads - and search_jobs fails while every non-embedding tool works, which
+# points at the search code rather than at the sandbox.
+Environment=HF_HOME=/tmp/.cache/huggingface
+Environment=HF_HUB_DISABLE_PROGRESS_BARS=1
+Environment=TOKENIZERS_PARALLELISM=false
+
 [Install]
 WantedBy=multi-user.target
 EOF

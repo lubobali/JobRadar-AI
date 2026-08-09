@@ -410,7 +410,9 @@ def log_application(
 
 
 @mcp.tool
-def update_application_status(application_id: int, status: str) -> dict[str, Any]:
+def update_application_status(
+    application_id: int | str, status: str
+) -> dict[str, Any]:
     """Move an application to a new stage.
 
     For "they called me back", "I have an interview Tuesday", "they passed".
@@ -428,6 +430,10 @@ def update_application_status(application_id: int, status: str) -> dict[str, Any
 
     Args:
         application_id: The number from log_application or list_applications.
+            Declared as int-or-string because FastMCP validates the schema
+            before this function runs: a model passing "the second one" would
+            get a pydantic parse error instead of the sentence below telling it
+            where to find a real id.
         status: One of interested, applied, screening, interviewing, offer,
             rejected, withdrawn.
 
@@ -453,7 +459,7 @@ def update_application_status(application_id: int, status: str) -> dict[str, Any
 
 
 @mcp.tool
-def add_interview_note(application_id: int, note: str) -> dict[str, Any]:
+def add_interview_note(application_id: int | str, note: str) -> dict[str, Any]:
     """Attach a note to an application.
 
     For what was asked, who was on the call, what to follow up on. Notes are
@@ -461,6 +467,7 @@ def add_interview_note(application_id: int, note: str) -> dict[str, Any]:
 
     Args:
         application_id: The number from log_application or list_applications.
+            Int-or-string on purpose - see update_application_status.
         note: What to record, in the user's own words where possible.
 
     Returns:
