@@ -179,6 +179,18 @@ def applied_page():  # noqa: ANN201
     )
 
 
+@app.route("/chat")
+def chat_page():  # noqa: ANN201
+    """The agent, on its own page.
+
+    It started as a bar fixed to the bottom of every page, which put a growing
+    reply on top of the results it was talking about. A conversation and a
+    ranked list are both trying to be the main thing on the screen; they each
+    need their own.
+    """
+    return render_template("chat.html", tab="chat", agent_ready=bool(AGENT_ENDPOINT))
+
+
 @app.route("/job/<job_id>")
 def job_page(job_id: str):  # noqa: ANN201
     job = repository.get_job(job_id, user_id=user_id())
@@ -305,17 +317,66 @@ def api_chat():  # noqa: ANN201
         ), 501
 
     body = request.get_json(silent=True) or {}
-    message = (body.get("message") or "").strip()
-    if not message:
-        return jsonify({"error": "message must not be empty"}), 400
+    try:
+        turns = _conversation(body)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
     try:
-        payload = _call_agent(message)
+        payload = _call_agent(turns)
     except Exception as exc:
         logger.warning("Agent call failed: %s", exc)
         return jsonify({"error": _agent_error(exc)}), 502
 
     return jsonify({"reply": _extract_reply(payload)})
+
+
+# The whole conversation is sent on every turn, because the endpoint keeps no
+# state between calls. Sending only the newest message is what makes an agent
+# that works in the Databricks playground fail on "save the second one" here:
+# it has no second one, and it has no idea it ever listed anything.
+#
+# Trimmed to the last MAX_TURNS, because a long session eventually exceeds the
+# context window - and the failure is a 400 on a message that looks fine.
+MAX_TURNS = 20
+_ROLES = ("user", "assistant")
+
+
+def _conversation(body: dict) -> list[dict[str, str]]:
+    """The turns to send, from either request shape.
+
+    Accepts `messages` (the whole conversation) or `message` (a single turn),
+    so the endpoint is usable from a script as well as from the chat page.
+
+    Raises ValueError with a message meant for a person, since every one of
+    these is something the caller can fix.
+    """
+    raw = body.get("messages")
+    if raw is None:
+        message = (body.get("message") or "").strip()
+        if not message:
+            raise ValueError("message must not be empty")
+        return [{"role": "user", "content": message}]
+
+    if not isinstance(raw, list) or not raw:
+        raise ValueError("messages must be a non-empty list")
+
+    turns: list[dict[str, str]] = []
+    for item in raw[-MAX_TURNS:]:
+        if not isinstance(item, dict):
+            raise ValueError("every message must be an object with role and content")
+        role = item.get("role")
+        raw_content = item.get("content")
+        content = raw_content.strip() if isinstance(raw_content, str) else ""
+        if role not in _ROLES:
+            raise ValueError(f"role must be one of {', '.join(_ROLES)}")
+        if not content:
+            raise ValueError("every message must have content")
+        turns.append({"role": role, "content": content})
+
+    if turns[-1]["role"] != "user":
+        raise ValueError("the last message must be from the user")
+    return turns
 
 
 # The HTTP status is the whole diagnosis, and an exception type name is none of
@@ -361,8 +422,8 @@ _HTTP_BAD_REQUEST = 400
 _HTTP_SERVER_ERROR = 500
 
 
-def _call_agent(message: str) -> Any:  # noqa: ANN401 - whatever the endpoint sent
-    """POST to the serving endpoint, trying each request shape in turn.
+def _call_agent(turns: list[dict[str, str]]) -> Any:  # noqa: ANN401 - whatever it sent
+    """POST the conversation to the serving endpoint, trying each shape in turn.
 
     Raises the last error if every shape was rejected, so the caller reports a
     real failure rather than an empty reply.
@@ -379,7 +440,7 @@ def _call_agent(message: str) -> Any:  # noqa: ANN401 - whatever the endpoint se
 
     last: Exception | None = None
     for key in _AGENT_REQUEST_KEYS:
-        body = {key: [{"role": "user", "content": message}]}
+        body = {key: turns}
         response = requests.post(url, headers=headers, json=body, timeout=120)
         if response.status_code < _HTTP_BAD_REQUEST:
             return response.json()
