@@ -2,7 +2,7 @@
 # MAGIC %md
 # MAGIC # JobRadar-AI — embed the descriptions
 # MAGIC
-# MAGIC **Capstone requirement 3: unstructured data processing.**
+# MAGIC **Part 3: unstructured data processing.**
 # MAGIC
 # MAGIC Job descriptions are the unstructured half of this project: 2-10KB of
 # MAGIC prose each, written by a different person at every company, in HTML that

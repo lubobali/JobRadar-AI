@@ -1,4 +1,4 @@
-"""JobRadar-AI - the frontend. Capstone requirement 4.
+"""JobRadar-AI - the frontend. Part 4.
 
 Three tabs and a detail page:
 
@@ -181,7 +181,7 @@ def applied_page():  # noqa: ANN201
 
 @app.route("/insights")
 def insights_page():  # noqa: ANN201
-    """Analytics computed in Delta from a Change Data Feed. Requirement 6.
+    """Analytics computed in Delta from a Change Data Feed. Part 6.
 
     Every number here was derived from the CDF of the Delta mirrors, not from a
     query against the operational tables. That distinction is the point: the

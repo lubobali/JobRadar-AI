@@ -1,8 +1,8 @@
-# JobRadar-AI — Capstone Build Plan
+# JobRadar-AI — Build Plan
 
-**Project:** Databricks AI Bootcamp capstone, option 5 (AI Job Hunting Copilot)
+**Project:** AI Job Hunting Copilot
 **Repo:** https://github.com/lubobali/JobRadar-AI
-**Local:** `/Users/lu/15_week_bootcamp/AI Bootcamp/JobRadar-AI/`
+**Local:** `/Users/lu/projects/JobRadar-AI/`
 **Target:** 100/100
 **Written:** 2026-08-08 · revised 2026-08-09 with the UI decisions
 
@@ -10,7 +10,7 @@
 
 ## State of play — end of 2026-08-08
 
-**Done: Phases 0, 1, 2, 3.** Two of the five capstone requirements are finished
+**Done: Phases 0, 1, 2, 3.** Two of the five core parts are finished
 and running on real data.
 
 | Req | What | Status |
@@ -34,7 +34,7 @@ and running on real data.
 
 **Start here tomorrow: Phase 4.** 5,539 descriptions are sitting in
 `job_postings` with `job_embeddings` empty. Port `embeddings.py`, write
-`notebooks/embed_jobs.py`, run it. That is requirement 3.
+`notebooks/embed_jobs.py`, run it. That is part 3.
 
 **Known open items, all small**
 
@@ -55,12 +55,11 @@ and running on real data.
 
 ---
 
-## 1. The five requirements
+## 1. The five core parts
 
-Every capstone must have all five. This is the whole grading surface, so it is
-the first thing in the document.
+The system needs all five, so they are the first thing in the document.
 
-| # | Requirement | What satisfies it | Phase |
+| # | Part | What satisfies it | Phase |
 |---|---|---|---|
 | 1 | **A data pipeline in Spark** | `notebooks/ingest_jobs.py` — 8 job APIs → one Spark DataFrame → dedup → Lakebase | 3 |
 | 2 | **Third-party API integration** | 8 of them, already written and tested | 1, 3 |
@@ -78,8 +77,8 @@ files are copied out.
 | Repo | Where | Why it matters |
 |---|---|---|
 | `aws-job-streamer` | EC2 `ubuntu@18.191.209.36:~/aws-job-streamer`, GitHub `lubobali/aws-job-streamer` | The domain logic. 4,144 lines, 498 tests. **Do not touch it** — it is the live resume artifact for AWS/Terraform |
-| `SkyIndex-AI` | `/Users/lu/15_week_bootcamp/AI Bootcamp/SkyIndex-AI/` | Lakebase, pgvector, embeddings, the Flask frontend |
-| `SkyCast-AI` | `/Users/lu/15_week_bootcamp/AI Bootcamp/SkyCast-AI/` | The MCP server shape, bearer auth, HTTP client |
+| `SkyIndex-AI` | `/Users/lu/projects/SkyIndex-AI/` | Lakebase, pgvector, embeddings, the Flask frontend |
+| `SkyCast-AI` | `/Users/lu/projects/SkyCast-AI/` | The MCP server shape, bearer auth, HTTP client |
 
 ### Copy manifest
 
@@ -165,7 +164,7 @@ what is already stored.
 ## 4. Data model
 
 Lakebase, reusing the existing instance, in **its own database**. Table names
-follow Zach's suggested set for option 5.
+follow the standard set for a job-hunting copilot.
 
 ```
 users               id, email, created_at
@@ -175,7 +174,7 @@ job_postings        id, source, source_id, company, title, url, location,
                     remote, salary, description, posted_at, fetched_at,
                     content_hash, cross_source_key
 job_embeddings      job_id, chunk_index, chunk_text, embedding vector(384),
-                    model_name, content_hash            ← requirement 3
+                    model_name, content_hash            ← part 3
 job_scores          job_id, user_id, fit_score, reason, scored_at
 saved_jobs          user_id, job_id, saved_at, note     ← WRITE
 applications        id, user_id, job_id, status, applied_at, updated_at  ← WRITE
@@ -259,8 +258,8 @@ it. Use `/status`.
 **Use `claude-haiku-4-5`.** `gpt-5-6-sol` refuses function tools with
 reasoning_effort; `claude-sonnet-5` is rate-limited here.
 
-**This is Zach's shared workspace.** Not an admin. Cannot `CREATE CONNECTION` in
-`main.default` — use `bootcamp_students.lubo_jobradar`. PATs *do* work here.
+**This is a shared workspace.** Not an admin. Cannot `CREATE CONNECTION` in
+`main.default` — use `main.lubo_jobradar`. PATs *do* work here.
 
 **A fake cursor records SQL, it does not parse it.** Unit tests passed while the
 first live SkyIndex query died on a syntax error. Test against real Lakebase.
@@ -319,7 +318,7 @@ provider swap removes it.
 lives in schema `jobradar` inside the shared database and `lakebase.py` pins
 `search_path` on every connection.
 
-### Phase 3 — Spark ingest — requirement 1  ✅ DONE
+### Phase 3 — Spark ingest — part 1  ✅ DONE
 
 **First full run, 2026-08-09:**
 
@@ -349,7 +348,7 @@ design working.
 - [x] 3.7 Funnel logged at every stage
 - [ ] 3.8 Schedule it as a Databricks Job
 
-### Phase 4 — Unstructured processing (60 min) — requirement 3
+### Phase 4 — Unstructured processing (60 min) — part 3
 
 - [ ] 4.1 **From SkyIndex-AI**: `embeddings.py`
 - [ ] 4.2 `notebooks/embed_jobs.py` — chunk descriptions, embed, write
@@ -361,7 +360,7 @@ design working.
 - [ ] 4.6 Keep its rule: **the LLM writes prose, Python computes every number**
 - [ ] 4.7 Keep its fencing: a job description is untrusted input
 
-### Phase 5 — MCP server and agent (90 min) — requirement 5
+### Phase 5 — MCP server and agent (90 min) — part 5
 
 - [ ] 5.1 **From SkyCast-AI**: `weather_mcp_server.py` as the shape,
       `bearer_auth.py`, `validation.py`, `scripts/smoke_test.py`
@@ -371,12 +370,12 @@ design working.
 - [ ] 5.4 Every write returns what it changed. Status validated. No deletes
 - [ ] 5.5 Deploy to `jobradar.lubot.ai`: own dir, own user, own port, systemd,
       nginx + certbot, bearer token generated **on the server**
-- [ ] 5.6 Register in AI Gateway under `bootcamp_students.lubo_jobradar`
+- [ ] 5.6 Register in AI Gateway under `main.lubo_jobradar`
 - [ ] 5.7 Agent Bricks Supervisor agent, `claude-haiku-4-5`,
       `agent/system_prompt.md`
 - [ ] 5.8 Demo transcripts into `agent/agent_config.md`
 
-### Phase 6 — Databricks App frontend (2 hrs) — requirement 4
+### Phase 6 — Databricks App frontend (2 hrs) — part 4
 
 - [ ] 6.1 **From SkyIndex-AI**: `app.py` + `templates/` + CSS
 - [ ] 6.2 Search tab: the list, filters, 25 per page
@@ -385,7 +384,7 @@ design working.
 - [ ] 6.5 Applied tab: table + status dropdown + notes
 - [ ] 6.6 Chat bar → the agent's serving endpoint.
       **Risk: this is the one new integration.** Fallback if it fights back:
-      the bar links out to the agent Playground. Requirement 5 is still met
+      the bar links out to the agent Playground. Part 5 is still met
 - [ ] 6.7 Deploy as a Databricks App, secret scope + service principal READ ACL
 - [ ] 6.8 Screenshot everything the moment it works
 
@@ -421,15 +420,15 @@ JobRadar-AI/
 │   ├── repository.py        reads + WRITES  ← SkyIndex-AI + new
 │   └── schema.sql                           ← SkyIndex-AI pattern
 ├── notebooks/
-│   ├── ingest_jobs.py       requirement 1, Spark        NEW
-│   └── embed_jobs.py        requirement 3               NEW
-├── mcp_server/              requirement 5   ← SkyCast-AI
+│   ├── ingest_jobs.py       part 1, Spark        NEW
+│   └── embed_jobs.py        part 3               NEW
+├── mcp_server/              part 5   ← SkyCast-AI
 │   ├── jobs_mcp_server.py
 │   ├── bearer_auth.py
 │   ├── validation.py
 │   ├── app.yaml
 │   └── requirements.txt
-├── app/                     requirement 4   ← SkyIndex-AI
+├── app/                     part 4   ← SkyIndex-AI
 │   ├── app.py
 │   ├── templates/
 │   ├── app.yaml

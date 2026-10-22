@@ -1,6 +1,6 @@
 """The CDF analytics surface: the repository read and the Insights page.
 
-Capstone requirement 6. The pipeline itself lives in
+Part 6. The pipeline itself lives in
 `notebooks/cdf_analytics.py` and runs on Spark against Delta, so what is
 testable here is the contract either side of it: what the repository asks
 Postgres for, and what the page does with the answer - including when the
@@ -149,7 +149,7 @@ class TestInsightsPage:
 class TestNotebookContract:
     """The notebook is not importable here, so its guarantees are pinned as text.
 
-    Cheap, and it catches the two edits that would silently break requirement 6:
+    Cheap, and it catches the two edits that would silently break part 6:
     losing the CDF property, or swapping the MERGE for an overwrite.
     """
 

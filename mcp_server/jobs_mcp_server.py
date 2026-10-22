@@ -1,4 +1,4 @@
-"""JobRadar-AI - the MCP server. Capstone requirement 5.
+"""JobRadar-AI - the MCP server. Part 5.
 
 Nine tools over streamable HTTP, for a Databricks Agent Bricks agent:
 
@@ -366,7 +366,7 @@ def get_profile() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # WRITE
 #
-# Requirement 5's actual subject. Each of these changes the database and each
+# Part 5's actual subject. Each of these changes the database and each
 # reports exactly what it changed.
 # ---------------------------------------------------------------------------
 

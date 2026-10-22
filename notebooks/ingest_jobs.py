@@ -2,7 +2,7 @@
 # MAGIC %md
 # MAGIC # JobRadar-AI — Spark ingest
 # MAGIC
-# MAGIC **Capstone requirement 1: a data pipeline in Spark.** Also requirement 2,
+# MAGIC **Part 1: a data pipeline in Spark.** Also part 2,
 # MAGIC since the fan-out below is 129 calls across 8 third-party job APIs.
 # MAGIC
 # MAGIC ```

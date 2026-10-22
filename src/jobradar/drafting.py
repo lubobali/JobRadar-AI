@@ -1,6 +1,6 @@
 """Drafting application text for one posting.
 
-The capstone's job-hunting option asks the agent to "draft a tailored
+A job-hunting copilot should "draft a tailored
 cover-letter snippet or resume bullet for a specific posting". This is that.
 
 Two things separate it from asking a chatbot for a cover letter.

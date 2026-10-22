@@ -21,7 +21,7 @@ on the previous project by working through every method its own form offers:
 
   OAuth M2M                     Needs a service principal with an OAuth secret.
                                 Creating one is a workspace-admin operation,
-                                and this is a shared bootcamp workspace where
+                                and this is a shared workspace where
                                 the account is in `users`, not `admins`:
                                 "...ServicePrincipals is only accessible by
                                 admins."
@@ -31,9 +31,9 @@ on the previous project by working through every method its own form offers:
                                 Databricks-managed and not editable.
 
 So JobRadar splits the two deployments by role rather than duplicating one.
-The **Databricks App is the frontend** (capstone requirement 4, which wants a
+The **Databricks App is the frontend** (part 4, which wants a
 frontend anyway) and the **MCP server runs on jobradar.lubot.ai** behind this
-token (requirement 5). One deployment each, doing what it is good at, instead
+token (part 5). One deployment each, doing what it is good at, instead
 of the same code running twice.
 
 The token is read from the environment and compared in constant time. Set

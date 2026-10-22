@@ -7,7 +7,7 @@ clause in it was paid for once already; the comments say what each one cost.
 Split into three sections:
 
     reads       what the Search tab and the agent's read tools call
-    writes      saving, applying, notes, contacts - the surface requirement 5
+    writes      saving, applying, notes, contacts - the surface part 5
                 is actually about
     plumbing    ingest, embedding bookkeeping, schema checks
 
@@ -609,7 +609,7 @@ def list_applications(
 # ---------------------------------------------------------------------------
 # Writes
 #
-# The surface requirement 5 is actually about. Three rules hold across all of
+# The surface part 5 is actually about. Three rules hold across all of
 # them:
 #
 #   Every write returns the row it wrote. The agent has to be able to say what
@@ -748,7 +748,7 @@ def set_follow_up(user_id: int, application_id: int, follow_up_on: date | None) 
 
 
 def analytics(metric: str | None = None, days: int = 30) -> list[dict]:
-    """Rows published by the Delta analytics run. Requirement 6.
+    """Rows published by the Delta analytics run. Part 6.
 
     Read-only here. Nothing in the app or the agent writes this table; it is
     replaced wholesale by `notebooks/cdf_analytics.py`, which computes it from a

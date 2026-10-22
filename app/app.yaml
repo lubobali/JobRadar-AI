@@ -1,4 +1,4 @@
-# Databricks App config for the JobRadar-AI frontend. Capstone requirement 4.
+# Databricks App config for the JobRadar-AI frontend. Part 4.
 #
 # No credential here. lakebase.py resolves the connection URL at runtime from
 # the secret scope named below, so nothing sensitive is in source control or in

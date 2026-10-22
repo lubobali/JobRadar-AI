@@ -2,7 +2,7 @@
 # MAGIC %md
 # MAGIC # JobRadar-AI — Change Data Feed into a Delta analytics table
 # MAGIC
-# MAGIC **Capstone requirement 6: CDF on Delta, feeding an analytics table.**
+# MAGIC **Part 6: CDF on Delta, feeding an analytics table.**
 # MAGIC
 # MAGIC ```
 # MAGIC Lakebase (Postgres)          the OLTP store. The app and the agent write here.
@@ -52,7 +52,7 @@ dbutils.library.restartPython()
 
 # DBTITLE 1,Config
 dbutils.widgets.text("secret_scope", "lubo-jobradar", "Secret scope")
-dbutils.widgets.text("catalog", "bootcamp_students", "Unity Catalog")
+dbutils.widgets.text("catalog", "main", "Unity Catalog")
 dbutils.widgets.text("schema", "lubo_jobradar", "Schema")
 dbutils.widgets.dropdown("publish", "true", ["true", "false"], "Write results back to Lakebase")
 

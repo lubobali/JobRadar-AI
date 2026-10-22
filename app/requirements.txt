@@ -1,4 +1,4 @@
-# Databricks App: the frontend. Requirement 4.
+# Databricks App: the frontend. Part 4.
 #
 # The package itself is installed from git. The App deploys only the `app/`
 # subfolder, so `from jobradar import ...` has nothing to resolve against

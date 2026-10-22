@@ -403,7 +403,7 @@ class TestWrites:
     def test_nothing_deletes_a_job_an_application_or_a_note(self) -> None:
         """The write surface is additive. Read the source and prove it.
 
-        Requirement 5 wants an agent that writes, and an agent that writes is
+        Part 5 wants an agent that writes, and an agent that writes is
         an agent that can be talked into destroying something. The guarantee is
         not "the prompt says not to" - it is that no function here can.
 

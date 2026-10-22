@@ -101,7 +101,7 @@ CREATE INDEX IF NOT EXISTS idx_job_postings_remote
 
 
 -- ---------------------------------------------------------------------------
--- The unstructured half. Requirement 3.
+-- The unstructured half. Part 3.
 --
 -- chunk_text is stored beside its vector rather than recomputed from the
 -- description at query time. Recomputing would make the retrieved passage
@@ -234,7 +234,7 @@ CREATE INDEX IF NOT EXISTS idx_contacts_user_company
 -- ---------------------------------------------------------------------------
 -- Analytics, computed in Delta and published back here.
 --
--- Capstone requirement 6: Change Data Feed into a Delta analytics table.
+-- Part 6: Change Data Feed into a Delta analytics table.
 --
 -- The direction is deliberate. Lakebase is the OLTP store the app and the agent
 -- write to; Delta is where the HISTORY of those writes is reconstructed, using

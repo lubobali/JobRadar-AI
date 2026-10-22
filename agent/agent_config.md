@@ -3,7 +3,7 @@
 How the Databricks Agent Bricks agent is wired up, and what it actually does
 when asked. The prompt itself is in [`system_prompt.md`](system_prompt.md).
 
-This is the evidence for **capstone requirement 5: an AI agent that can read
+This is the evidence for **part 5: an AI agent that can read
 from and write to your database.**
 
 ---
@@ -16,7 +16,7 @@ from and write to your database.**
 | **Type** | Agent Bricks — Supervisor Agent |
 | **Model** | `claude-haiku-4-5` |
 | **Instructions** | the full text of [`system_prompt.md`](system_prompt.md) |
-| **Tools** | `bootcamp_students.lubo_jobradar.jobradar_mcp` (UC MCP Service) |
+| **Tools** | `main.lubo_jobradar.jobradar_mcp` (UC MCP Service) |
 
 ### The eleven tools
 
@@ -42,7 +42,7 @@ three Draft buttons on the job page.
 | URL | `https://jobradar.lubot.ai/mcp` |
 | Transport | streamable HTTP |
 | Auth | bearer token, generated on the host, stored in a UC connection |
-| UC object | `bootcamp_students.lubo_jobradar.jobradar_mcp` |
+| UC object | `main.lubo_jobradar.jobradar_mcp` |
 
 `python_exec` is attached to every Supervisor Agent by Databricks and cannot be
 removed. It is unused here; every answer below comes from an MCP tool call.

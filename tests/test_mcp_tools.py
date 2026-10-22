@@ -8,7 +8,7 @@ covered in test_repository and against a real Lakebase:
   2. **No tool ever raises.** A raise reaches the agent as a transport failure
      it can only report as "the tool broke". A returned `{"error": ...}` is a
      sentence it can act on - and one that tells it not to invent a result.
-  3. **The write tools cannot be talked into damage.** This is requirement 5's
+  3. **The write tools cannot be talked into damage.** This is part 5's
      actual risk: an agent with write access is an agent that can be asked for
      something destructive in perfectly polite language.
 """
@@ -102,7 +102,7 @@ class TestRegistration:
         assert set(registered()) == ALL_TOOLS
 
     def test_reads_and_writes_are_classified(self) -> None:
-        # Requirement 5 is an agent with read AND write. A read-only server
+        # Part 5 is an agent with read AND write. A read-only server
         # would be easier and would score badly.
         kinds = {name: kind for name, kind, _ in server.TOOL_SUMMARIES}
         assert {n for n, k in kinds.items() if k == "read"} == READ_TOOLS
@@ -267,7 +267,7 @@ class TestWriteTools:
 
 
 class TestThereIsNoDeleteTool:
-    """Requirement 5's other half: an agent that can write is an agent that can
+    """Part 5's other half: an agent that can write is an agent that can
     be asked to destroy something in perfectly polite language."""
 
     def test_no_registered_tool_deletes_anything(self) -> None:
@@ -335,7 +335,7 @@ class TestPlainHttpRoutes:
 class TestStaleApplications:
     """`list_applications(stale_days=...)`.
 
-    The capstone's job-hunting option asks the agent to "surface stale
+    A job-hunting copilot should "surface stale
     applications that haven't been updated in a while". This is that path.
     """
 

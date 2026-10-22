@@ -1,11 +1,11 @@
 # Screenshots
 
-Evidence that each capstone requirement runs, in the order a reader should look
+Evidence that each part runs, in the order a reader should look
 at them. Every number in these images is from the real system, not a fixture.
 
 ---
 
-### 1. `01-req1-spark-ingest-run.png` — requirements 1 and 2
+### 1. `01-spark-ingest-run.png` — part 1 and 2
 
 The Spark ingest notebook's final report cell, on serverless compute, with the
 run's own output underneath:
@@ -30,7 +30,7 @@ Both deduplication passes are visible as separate numbers: 8,314 fetched become
 `information_schema`. This is also why the schema is called `jobradar` rather
 than being its own database: `CREATE DATABASE` is refused on Lakebase.
 
-### 3. `03-req4-app-search-ranked.png` — requirement 4
+### 3. `03-app-search-ranked.png` — part 4
 
 The Databricks App's Search tab. Every stored job ranked by fit score, filters
 for source, remote, recency and score, and working Save / Log applied buttons on
@@ -39,14 +39,14 @@ each card. Each score carries the reason the LLM gave for it.
 > Taken before the agent moved to its own **Ask** tab, so the chat appears here
 > as an overlay at the bottom. Screenshots 4 and 5 show the current layout.
 
-### 4. `04-req4-app-agent-numbered-search.png` — requirements 4 and 5
+### 4. `04-app-agent-numbered-search.png` — part 4 and 5
 
 The **Ask** tab. Ten roles, numbered, with company, location, salary, and the
 fit score where one exists. The numbering is a prompt rule, not a formatting
 accident — without it "the second one" in the next screenshot has nothing to
 count.
 
-### 5. `05-req5-app-agent-multiturn-save.png` — requirement 5, the write path
+### 5. `05-app-agent-multiturn-save.png` — part 5, the write path
 
 Three turns in one image, and the most complete piece of evidence here:
 
@@ -65,10 +65,10 @@ still in context. An earlier version of the page replayed only the visible text
 and the agent wrote a reconstructed id, which the foreign key refused. See
 [`../agent/agent_config.md`](../agent/agent_config.md).
 
-### 6. `06-req5-mcp-service-9-tools.png` — requirement 5, the wiring
+### 6. `06-mcp-service-9-tools.png` — part 5, the wiring
 
 The MCP server registered as a Unity Catalog MCP Service,
-`bootcamp_students.lubo_jobradar.jobradar_mcp`, with **all tools selected**.
+`main.lubo_jobradar.jobradar_mcp`, with **all tools selected**.
 
 > The image shows 9, which is what existed when it was taken. There are 11 now —
 > `draft_application_text` and `set_follow_up` were added later. "Automatically
@@ -78,21 +78,21 @@ The `search_jobs` description is readable here — the tool descriptions are
 written for the agent, and say what the tool is for and what to do when it
 fails.
 
-### 7. `07-req5-agent-search-tool-call.png` — requirement 5, expanded
+### 7. `07-agent-search-tool-call.png` — part 5, expanded
 
 The same question in the Agent Bricks playground, with the tool call expanded:
 the arguments the agent chose (`remote_only: true`, `top_k: 10`, and a query
 expanded into vocabulary the postings actually use) and the raw JSON that came
 back, `fit_score` and `fit_reason` included.
 
-### 8. `08-req5-agent-search-answer.png` — requirement 5, the read
+### 8. `08-agent-search-answer.png` — part 5, the read
 
 What the agent made of that output. Note the Snowflake role at #6 with its score
 of **28** and the reason quoted — cosine similarity ranked that same job
 **first**, at 0.742. The gap between the two is the argument for having both a
 retrieval layer and a ranking layer.
 
-### 9. `09-req5-agent-log-application-write.png` — requirement 5, the write
+### 9. `09-agent-log-application-write.png` — part 5, the write
 
 **"Log that I applied to the Sardine one"** → `log_application` → *"Logged as
 applied, application 2."* The reply names the row that was written rather than
@@ -100,14 +100,14 @@ saying "done", which is what lets a wrong write be caught.
 
 Nothing was sent to Sardine. No tool in this server contacts an employer.
 
-### 10. `10-req5-agent-parallel-read-back.png` — requirement 5, read after write
+### 10. `10-agent-parallel-read-back.png` — part 5, read after write
 
 **"What have I applied to so far, and what does the Sardine one actually want?"**
 The agent recognised a compound question and ran `list_applications` and
 `get_job` **in parallel**. The application from screenshot 9 is really in the
 database — this is a fresh read, not the agent remembering what it said.
 
-### 11–13. Drafting — `11-req4-draft-cover-letter.png`, `12-…-resume-bullets.png`, `13-…-outreach.png`
+### 11–13. Drafting — `11-draft-cover-letter.png`, `12-…-resume-bullets.png`, `13-…-outreach.png`
 
 The option-5 capability "draft a tailored cover-letter snippet or resume
 bullet", on the job page: three buttons, three forms, all written from the
@@ -133,7 +133,7 @@ personal access tokens, and the MCP host is outside Databricks — so it cannot
 hold one. A Databricks App authenticates natively. Same module, same prompt,
 same untrusted-description fence; only the identity differs.
 
-### 14. `14-req6-insights-cdf-dashboard.png` — requirement 6
+### 14. `14-insights-cdf-dashboard.png` — part 6
 
 The App's **Insights** tab. Every number on it was computed in Delta from a
 Change Data Feed and published back to Lakebase; the page itself calculates

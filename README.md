@@ -6,9 +6,6 @@ with an LLM, and puts an agent in front of the result that can both read the
 database and write to it. Change Data Feed on Delta mirrors turns the write
 history into analytics.
 
-Databricks AI Bootcamp capstone, option 5.
-**Grading it?** Start at [SUBMISSION.md](SUBMISSION.md) — every URL and every
-requirement mapped to the file and the screenshot that proves it.
 
 | | |
 |---|---|
@@ -17,7 +14,7 @@ requirement mapped to the file and the screenshot that proves it.
 | **Repo** | https://github.com/lubobali/JobRadar-AI |
 | **Agent** | `jobradar-agent`, Databricks Agent Bricks |
 | **Database** | Lakebase (Postgres 17 + pgvector), schema `jobradar`, 11 tables |
-| **Delta** | `bootcamp_students.lubo_jobradar.jobradar_*`, Change Data Feed enabled |
+| **Delta** | `main.lubo_jobradar.jobradar_*`, Change Data Feed enabled |
 | **Tests** | 842 fast, 26 live, ruff clean |
 
 ---
@@ -53,16 +50,16 @@ things I have to keep in sync by hand.
 
 ```mermaid
 flowchart TB
-    subgraph ext["Third-party APIs (requirement 2)"]
+    subgraph ext["Third-party APIs (part 2)"]
         A1["Greenhouse · Ashby · Lever<br/>Workday · Remotive · Breezy<br/>Adzuna · USAJobs"]
     end
 
-    subgraph spark["Databricks serverless Spark (requirement 1)"]
+    subgraph spark["Databricks serverless Spark (part 1)"]
         B1["ingest_jobs<br/>129 source specs fanned out<br/>as a UDF over a DataFrame"]
         B2["dedup: job_id, then cross_source_key"]
     end
 
-    subgraph unstruct["Unstructured processing (requirement 3)"]
+    subgraph unstruct["Unstructured processing (part 3)"]
         C1["embed_jobs<br/>HTML -> text -> contextual chunks"]
         C2["all-MiniLM-L6-v2<br/>60,860 vectors, 384-dim"]
         C3["scoring.py<br/>LLM ranks JD against resume<br/>via Databricks AI Gateway"]
@@ -72,14 +69,14 @@ flowchart TB
         D1[("job_postings · job_embeddings<br/>job_scores · applications<br/>saved_jobs · interview_notes<br/>contacts · profiles · skills · users")]
     end
 
-    subgraph cdf["Change Data Feed (requirement 6)"]
+    subgraph cdf["Change Data Feed (part 6)"]
         F1["cdf_analytics<br/>Delta mirrors, enableChangeDataFeed"]
         F2["table_changes()<br/>-> jobradar_analytics_daily"]
     end
 
     subgraph front["Frontends"]
-        E1["Databricks App<br/>Flask + Jinja (requirement 4)"]
-        E2["jobradar-agent<br/>Agent Bricks (requirement 5)"]
+        E1["Databricks App<br/>Flask + Jinja (part 4)"]
+        E2["jobradar-agent<br/>Agent Bricks (part 5)"]
     end
 
     E3["MCP server on Hetzner<br/>11 tools: 5 read, 6 write"]
@@ -106,15 +103,15 @@ Let's Encrypt. Deploy script: [`scripts/deploy_mcp.sh`](scripts/deploy_mcp.sh).
 
 ---
 
-## Requirement traceability
+## The six parts, and the proof
 
-Here is exactly where each requirement lives and how to check it.
+Here is exactly where each part lives and how to check it.
 
 Screenshots of every one of them, with the numbers they produced, are in
 [`screenshots/`](screenshots/) — start with its
 [index](screenshots/README.md).
 
-| # | Requirement | Where it lives | Evidence it ran |
+| # | Part | Where it lives | Evidence it ran |
 |---|---|---|---|
 | **1** | **Data pipeline in Spark** | [`notebooks/ingest_jobs.py`](notebooks/ingest_jobs.py) — 129 source specs become a DataFrame, a UDF fans out the fetches across executors, results are exploded, deduplicated twice, and written to Lakebase | **5,718 postings** in `job_postings` |
 | **2** | **Third-party API integration** | [`src/jobradar/fetchers/`](src/jobradar/fetchers/) — 8 clients: Greenhouse, Ashby, Lever, Workday, Remotive, Breezy, Adzuna, USAJobs | 6 sources with data: greenhouse 3,040 · ashby 2,335 · **adzuna 177** · lever 97 · workday 50 · remotive 19 |
@@ -137,10 +134,9 @@ Screenshots of every one of them, with the numbers they produced, are in
 `draft_application_text` is a read: it produces the most text of any tool and
 stores none of it. The draft belongs to the user, not the database.
 
-### Option 5's own capability list
+### What a job-hunting copilot should do
 
-The capstone's job-hunting option names six things the agent should do. All six
-work:
+A job-hunting copilot should do six things. All six work:
 
 | Capability | Where |
 |---|---|
