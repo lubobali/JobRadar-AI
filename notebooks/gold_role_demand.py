@@ -31,8 +31,7 @@
 
 # DBTITLE 1,Dependencies
 # The executors run the UDFs, so they need the package too: installed, not added to sys.path.
-# Pinned to the feature branch until it is merged; switch back to main after the merge.
-# MAGIC %pip install -q git+https://github.com/lubobali/JobRadar-AI.git@feature/gold-role-demand
+# MAGIC %pip install -q git+https://github.com/lubobali/JobRadar-AI.git
 
 # COMMAND ----------
 

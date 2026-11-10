@@ -6,6 +6,8 @@ with an LLM, and puts an agent in front of the result that can both read the
 database and write to it. Change Data Feed on Delta mirrors turns the write
 history into analytics.
 
+**▶ Watch:** [how I built a certified gold table with Claude Code on Databricks (9 min)](https://www.loom.com/share/101d0c4314804593a6a30eed01bf1a72)
+
 
 | | |
 |---|---|
@@ -15,7 +17,7 @@ history into analytics.
 | **Agent** | `jobradar-agent`, Databricks Agent Bricks |
 | **Database** | Lakebase (Postgres 17 + pgvector), schema `jobradar`, 11 tables |
 | **Delta** | `main.lubo_jobradar.jobradar_*`, Change Data Feed enabled |
-| **Tests** | 842 fast, 26 live, ruff clean |
+| **Tests** | 903 fast, 26 live, ruff clean |
 
 ---
 
@@ -120,7 +122,7 @@ Screenshots of every one of them, with the numbers they produced, are in
 | **5** | **AI agent with read and write** | [`mcp_server/jobs_mcp_server.py`](mcp_server/jobs_mcp_server.py) — 11 tools, 5 read and 6 write, and [`agent/system_prompt.md`](agent/system_prompt.md) | Transcripts in [`agent/agent_config.md`](agent/agent_config.md); the agent logged application 2 and read it back |
 | **6** | **Change Data Feed → Delta analytics** | [`notebooks/cdf_analytics.py`](notebooks/cdf_analytics.py) — the operational tables mirrored into Delta with CDF on, `table_changes()` aggregated into `jobradar_analytics_daily`, results published back to Lakebase | 4 Delta tables with `enableChangeDataFeed = true`; the App's **Insights** tab renders it |
 
-**Gold: weekly demand by role type.** [`notebooks/gold_role_demand.py`](notebooks/gold_role_demand.py) reads the Delta copy of `job_postings` and writes `bootcamp_students.lubo_jobradar.jobradar_gold_role_demand_weekly`, one row per week × role type × `remote` / `not_remote`. Role type is a regex on the title ([`src/jobradar/role_type.py`](src/jobradar/role_type.py)), good enough for counting, not for matching. Before the write, [`src/jobradar/gold_checks.py`](src/jobradar/gold_checks.py) checks the grain is unique, the values are allowed, no count is zero, the table is not empty, and postings plus rows with no week equal the source rows. If any check fails, nothing is written.
+**Gold: weekly demand by role type.** [`notebooks/gold_role_demand.py`](notebooks/gold_role_demand.py) reads the Delta copy of `job_postings` and writes `bootcamp_students.lubo_jobradar.jobradar_gold_role_demand_weekly`, one row per week × role type × `remote` / `not_remote`. Role type is a regex on the title ([`src/jobradar/role_type.py`](src/jobradar/role_type.py)), good enough for counting, not for matching. Before the write, [`src/jobradar/gold_checks.py`](src/jobradar/gold_checks.py) checks the grain is unique, the values are allowed, no count is zero, the table is not empty, and postings plus rows with no week equal the source rows. If any check fails, nothing is written. First run (Nov 9 2026): 5,718 source rows, 5,718 postings across 524 gold rows, none lost.
 
 ### The agent's eleven tools
 
@@ -308,7 +310,7 @@ git clone https://github.com/lubobali/JobRadar-AI.git
 cd JobRadar-AI
 python3 -m venv venv && ./venv/bin/pip install -r requirements-dev.txt
 ./venv/bin/pip install -e .
-./venv/bin/python -m pytest -q          # 842 tests, no credentials needed
+./venv/bin/python -m pytest -q          # 903 tests, no credentials needed
 ```
 
 The fast suite mocks every external boundary, so it runs offline in under two
@@ -397,7 +399,7 @@ costs nothing to do at the start.
 
 ## Testing
 
-868 tests, 842 of which need no credentials.
+929 tests, 903 of which need no credentials.
 
 | Area | Tests |
 |---|---|
@@ -435,7 +437,7 @@ app/                the Databricks App: Flask, Jinja templates
 agent/              system_prompt.md, agent_config.md
 scripts/            deploy_mcp.sh, seed_profile.py, smoke_test.py
 screenshots/        evidence for each requirement, with an index
-tests/              868 tests
+tests/              929 tests
 PLAN.md             the build plan this was written against
 ```
 
