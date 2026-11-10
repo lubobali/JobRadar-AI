@@ -120,6 +120,8 @@ Screenshots of every one of them, with the numbers they produced, are in
 | **5** | **AI agent with read and write** | [`mcp_server/jobs_mcp_server.py`](mcp_server/jobs_mcp_server.py) — 11 tools, 5 read and 6 write, and [`agent/system_prompt.md`](agent/system_prompt.md) | Transcripts in [`agent/agent_config.md`](agent/agent_config.md); the agent logged application 2 and read it back |
 | **6** | **Change Data Feed → Delta analytics** | [`notebooks/cdf_analytics.py`](notebooks/cdf_analytics.py) — the operational tables mirrored into Delta with CDF on, `table_changes()` aggregated into `jobradar_analytics_daily`, results published back to Lakebase | 4 Delta tables with `enableChangeDataFeed = true`; the App's **Insights** tab renders it |
 
+**Gold: weekly demand by role type.** [`notebooks/gold_role_demand.py`](notebooks/gold_role_demand.py) reads the Delta copy of `job_postings` and writes `bootcamp_students.lubo_jobradar.jobradar_gold_role_demand_weekly`, one row per week × role type × `remote` / `not_remote`. Role type is a regex on the title ([`src/jobradar/role_type.py`](src/jobradar/role_type.py)), good enough for counting, not for matching. Before the write, [`src/jobradar/gold_checks.py`](src/jobradar/gold_checks.py) checks the grain is unique, the values are allowed, no count is zero, the table is not empty, and postings plus rows with no week equal the source rows. If any check fails, nothing is written.
+
 ### The agent's eleven tools
 
 | Read | Write |
